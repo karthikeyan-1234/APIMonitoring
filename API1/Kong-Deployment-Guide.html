@@ -1,0 +1,1840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kong API Gateway — Deployment Strategy Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+  :root {
+    --bg:          #0d1117;
+    --bg2:         #161b22;
+    --bg3:         #1c2330;
+    --border:      #30363d;
+    --accent:      #00c9a7;
+    --accent2:     #007ea7;
+    --accent3:     #00a8e8;
+    --yellow:      #f0c940;
+    --coral:       #ff6b6b;
+    --purple:      #a78bfa;
+    --text:        #e6edf3;
+    --text2:       #8b949e;
+    --text3:       #6e7681;
+    --sidebar-w:   300px;
+    --header-h:    64px;
+    --radius:      10px;
+    --mono:        'JetBrains Mono', monospace;
+    --sans:        'DM Sans', sans-serif;
+    --display:     'Syne', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ─── HEADER ─────────────────────────────────────────── */
+  .site-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: var(--header-h);
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 24px;
+    gap: 16px;
+  }
+  .site-header .logo {
+    font-family: var(--display);
+    font-size: 18px; font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+    white-space: nowrap;
+  }
+  .site-header .logo span { color: var(--text2); font-weight: 400; }
+  .site-header .tagline {
+    color: var(--text3);
+    font-size: 12px;
+    border-left: 1px solid var(--border);
+    padding-left: 16px;
+  }
+  .sidebar-toggle {
+    margin-left: auto;
+    background: none; border: 1px solid var(--border);
+    color: var(--text2); padding: 6px 12px; border-radius: 6px;
+    cursor: pointer; font-size: 13px; font-family: var(--sans);
+    transition: all .2s;
+  }
+  .sidebar-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ─── LAYOUT ──────────────────────────────────────────── */
+  .layout {
+    display: flex;
+    margin-top: var(--header-h);
+    min-height: calc(100vh - var(--header-h));
+  }
+
+  /* ─── SIDEBAR ─────────────────────────────────────────── */
+  .sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    position: fixed;
+    top: var(--header-h);
+    left: 0;
+    height: calc(100vh - var(--header-h));
+    overflow-y: auto;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    z-index: 90;
+    padding: 24px 0 48px;
+  }
+  .sidebar.collapsed { transform: translateX(calc(-1 * var(--sidebar-w))); }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .nav-group { margin-bottom: 8px; }
+  .nav-group-label {
+    font-family: var(--display);
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text3);
+    padding: 16px 20px 6px;
+    display: block;
+  }
+
+  .nav-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 20px;
+    color: var(--text2);
+    text-decoration: none;
+    font-size: 13.5px;
+    font-weight: 400;
+    border-left: 3px solid transparent;
+    transition: all .15s;
+    cursor: pointer;
+  }
+  .nav-link:hover { color: var(--text); background: rgba(255,255,255,.04); }
+  .nav-link.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: rgba(0,201,167,.07);
+    font-weight: 500;
+  }
+  .nav-link .nav-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
+  .nav-sub { padding-left: 36px; font-size: 12.5px; color: var(--text3); }
+  .nav-sub:hover { color: var(--text2); }
+  .nav-sub.active { color: var(--accent); border-left-color: var(--accent); }
+
+  /* ─── MAIN CONTENT ────────────────────────────────────── */
+  .main {
+    flex: 1;
+    margin-left: var(--sidebar-w);
+    transition: margin-left .3s cubic-bezier(.4,0,.2,1);
+    min-width: 0;
+  }
+  .main.expanded { margin-left: 0; }
+
+  /* ─── HERO ────────────────────────────────────────────── */
+  .hero {
+    padding: 80px 64px 60px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, var(--bg) 0%, var(--bg3) 100%);
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; top: -80px; right: -80px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(0,201,167,.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero .kicker {
+    font-family: var(--mono);
+    font-size: 11px; font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 2px; text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hero .kicker::before {
+    content: '';
+    display: inline-block; width: 24px; height: 1px;
+    background: var(--accent);
+  }
+  .hero h1 {
+    font-family: var(--display);
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    color: var(--text);
+    margin-bottom: 20px;
+  }
+  .hero h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+  .hero p {
+    font-size: 16px; color: var(--text2);
+    max-width: 600px; line-height: 1.8;
+    margin-bottom: 32px;
+  }
+  .hero-badges { display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid;
+  }
+  .badge-green  { color: var(--accent);  border-color: rgba(0,201,167,.3);  background: rgba(0,201,167,.08); }
+  .badge-blue   { color: var(--accent3); border-color: rgba(0,168,232,.3);  background: rgba(0,168,232,.08); }
+  .badge-yellow { color: var(--yellow);  border-color: rgba(240,201,64,.3); background: rgba(240,201,64,.08); }
+  .badge-purple { color: var(--purple);  border-color: rgba(167,139,250,.3);background: rgba(167,139,250,.08); }
+
+  /* ─── SECTION PAGES ───────────────────────────────────── */
+  .page-section {
+    padding: 64px;
+    border-bottom: 1px solid var(--border);
+    max-width: 960px;
+  }
+  @media (max-width: 900px) {
+    .page-section { padding: 40px 24px; }
+    .hero { padding: 48px 24px 40px; }
+  }
+
+  .section-eyebrow {
+    font-family: var(--mono);
+    font-size: 10px; letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent2); margin-bottom: 10px;
+  }
+  .section-title {
+    font-family: var(--display);
+    font-size: clamp(22px, 3vw, 32px);
+    font-weight: 700; letter-spacing: -0.5px;
+    color: var(--text); margin-bottom: 14px;
+    line-height: 1.2;
+  }
+  .section-lead {
+    font-size: 15px; color: var(--text2);
+    max-width: 700px; line-height: 1.8;
+    margin-bottom: 36px;
+  }
+
+  /* ─── CONTENT ELEMENTS ────────────────────────────────── */
+  h3 {
+    font-family: var(--display);
+    font-size: 18px; font-weight: 700;
+    color: var(--text); margin: 36px 0 12px;
+  }
+  h4 {
+    font-family: var(--sans);
+    font-size: 14px; font-weight: 500;
+    color: var(--accent); margin: 24px 0 8px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  p { color: var(--text2); margin-bottom: 14px; }
+  strong { color: var(--text); font-weight: 500; }
+
+  /* ─── CODE BLOCKS ─────────────────────────────────────── */
+  .code-wrap { position: relative; margin: 16px 0 24px; }
+  .code-label {
+    font-family: var(--mono);
+    font-size: 10px; letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text3);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    padding: 6px 14px;
+    display: inline-block;
+    border-radius: 6px 6px 0 0;
+  }
+  .code-wrap pre {
+    margin: 0 !important;
+    border-radius: 0 var(--radius) var(--radius) var(--radius) !important;
+    border: 1px solid var(--border) !important;
+    font-family: var(--mono) !important;
+    font-size: 13px !important;
+    line-height: 1.65 !important;
+  }
+  .code-wrap pre code { font-family: var(--mono) !important; }
+  .copy-btn {
+    position: absolute; top: 32px; right: 10px;
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text3); font-size: 11px; font-family: var(--mono);
+    padding: 4px 10px; border-radius: 4px; cursor: pointer;
+    transition: all .15s;
+  }
+  .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .copy-btn.copied { color: var(--accent); border-color: var(--accent); }
+
+  /* inline code */
+  code:not(pre code) {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: rgba(110,118,129,.15);
+    border: 1px solid var(--border);
+    padding: 1px 6px; border-radius: 4px;
+    color: var(--accent3);
+  }
+
+  /* ─── TABLES ──────────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; margin: 20px 0 28px; border-radius: var(--radius); border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    background: var(--bg3);
+    font-family: var(--mono);
+    font-size: 11px; letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text2);
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 11px 16px;
+    font-size: 13.5px;
+    color: var(--text2);
+    border-bottom: 1px solid rgba(48,54,61,.5);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+  td code { font-size: 12px; }
+
+  /* ─── CALLOUT BOXES ───────────────────────────────────── */
+  .callout {
+    padding: 16px 20px;
+    border-radius: var(--radius);
+    border-left: 4px solid;
+    margin: 20px 0;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .callout-title {
+    font-family: var(--display);
+    font-weight: 700; font-size: 13px;
+    margin-bottom: 4px; display: flex; align-items: center; gap: 6px;
+  }
+  .callout.info    { background: rgba(0,168,232,.08); border-color: var(--accent3); }
+  .callout.info .callout-title { color: var(--accent3); }
+  .callout.warning { background: rgba(240,201,64,.08); border-color: var(--yellow); }
+  .callout.warning .callout-title { color: var(--yellow); }
+  .callout.success { background: rgba(0,201,167,.08); border-color: var(--accent); }
+  .callout.success .callout-title { color: var(--accent); }
+  .callout.danger  { background: rgba(255,107,107,.08); border-color: var(--coral); }
+  .callout.danger .callout-title { color: var(--coral); }
+  .callout p { margin: 0; color: var(--text2); }
+
+  /* ─── STEP BLOCKS ─────────────────────────────────────── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step {
+    display: flex; gap: 20px;
+    padding: 0 0 32px;
+    position: relative;
+  }
+  .step::before {
+    content: '';
+    position: absolute; left: 18px; top: 40px;
+    width: 1px; bottom: 0;
+    background: var(--border);
+  }
+  .step:last-child::before { display: none; }
+  .step-num {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: var(--bg3); border: 1px solid var(--accent2);
+    color: var(--accent); font-family: var(--mono);
+    font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; position: relative; z-index: 1;
+  }
+  .step-body { flex: 1; padding-top: 6px; }
+  .step-title {
+    font-family: var(--display);
+    font-size: 16px; font-weight: 700;
+    color: var(--text); margin-bottom: 8px;
+  }
+
+  /* ─── FLOW DIAGRAM ────────────────────────────────────── */
+  .flow {
+    display: flex; align-items: center;
+    gap: 0; flex-wrap: wrap;
+    margin: 20px 0; padding: 20px;
+    background: var(--bg3); border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  .flow-node {
+    padding: 8px 16px; border-radius: 6px;
+    font-family: var(--mono); font-size: 12px;
+    border: 1px solid; white-space: nowrap;
+  }
+  .flow-arrow {
+    color: var(--text3); padding: 0 8px;
+    font-size: 16px;
+  }
+  .fn-blue   { color: var(--accent3); border-color: rgba(0,168,232,.4); background: rgba(0,168,232,.08); }
+  .fn-green  { color: var(--accent);  border-color: rgba(0,201,167,.4); background: rgba(0,201,167,.08); }
+  .fn-yellow { color: var(--yellow);  border-color: rgba(240,201,64,.4);background: rgba(240,201,64,.08); }
+  .fn-purple { color: var(--purple);  border-color: rgba(167,139,250,.4);background: rgba(167,139,250,.08); }
+  .fn-coral  { color: var(--coral);   border-color: rgba(255,107,107,.4);background: rgba(255,107,107,.08); }
+
+  /* ─── ANATOMY / ANNOTATED BLOCK ──────────────────────── */
+  .anatomy-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 20px 0; }
+  @media (max-width: 720px) { .anatomy-wrap { grid-template-columns: 1fr; } }
+  .anatomy-panel {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .anatomy-header {
+    background: var(--bg); padding: 10px 16px;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--text3); letter-spacing: 1px; text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .anatomy-body { padding: 16px; }
+  .anno-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-start; }
+  .anno-key {
+    font-family: var(--mono); font-size: 12px;
+    color: var(--accent3); flex-shrink: 0; width: 160px;
+    padding-top: 1px;
+  }
+  .anno-val { font-size: 13px; color: var(--text2); }
+  .anno-val strong { color: var(--text); }
+  .anno-val .src { font-family: var(--mono); font-size: 11px; color: var(--text3); display: block; }
+
+  /* ─── TAG ROW ─────────────────────────────────────────── */
+  .tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .tag {
+    font-family: var(--mono); font-size: 11px;
+    padding: 3px 10px; border-radius: 4px;
+    border: 1px solid var(--border);
+    color: var(--text2); background: var(--bg3);
+  }
+
+  /* ─── COMPARISON GRID ─────────────────────────────────── */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 24px 0; }
+  @media (max-width: 680px) { .compare-grid { grid-template-columns: 1fr; } }
+  .compare-card {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px;
+  }
+  .compare-card .cc-title {
+    font-family: var(--display); font-size: 16px; font-weight: 700;
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .cc-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .dot-green  { background: var(--accent); }
+  .dot-yellow { background: var(--yellow); }
+  .dot-blue   { background: var(--accent3); }
+  .dot-coral  { background: var(--coral); }
+  .compare-card ul { list-style: none; }
+  .compare-card li {
+    font-size: 13.5px; color: var(--text2);
+    padding: 5px 0; border-bottom: 1px solid rgba(48,54,61,.5);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .compare-card li:last-child { border-bottom: none; }
+  .compare-card li span { color: var(--text3); font-size: 12px; font-family: var(--mono); }
+
+  /* ─── INDEX CARDS ─────────────────────────────────────── */
+  .index-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 36px; }
+  .index-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px;
+    text-decoration: none; display: block;
+    transition: all .2s; position: relative; overflow: hidden;
+  }
+  .index-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: var(--card-accent, var(--accent));
+  }
+  .index-card:hover {
+    border-color: var(--card-accent, var(--accent));
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,.3);
+  }
+  .ic-num {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--text3); letter-spacing: 2px;
+    margin-bottom: 8px; display: block;
+  }
+  .ic-title {
+    font-family: var(--display); font-size: 17px;
+    font-weight: 700; color: var(--text);
+    margin-bottom: 8px; line-height: 1.3;
+  }
+  .ic-desc { font-size: 13px; color: var(--text3); line-height: 1.6; }
+
+  /* ─── DIVIDER ─────────────────────────────────────────── */
+  .divider {
+    height: 1px; background: var(--border);
+    margin: 36px 0;
+  }
+
+  /* ─── QUICK REF PILL ROW ──────────────────────────────── */
+  .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 24px; }
+  .pill {
+    font-family: var(--mono); font-size: 12px;
+    padding: 6px 14px; border-radius: 20px;
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text2);
+  }
+  .pill strong { color: var(--text); }
+
+  /* ─── FOOTER ──────────────────────────────────────────── */
+  .site-footer {
+    padding: 40px 64px;
+    border-top: 1px solid var(--border);
+    color: var(--text3); font-size: 13px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .site-footer .fl { margin-left: auto; font-family: var(--mono); font-size: 11px; }
+
+  /* ─── OVERLAY (mobile) ────────────────────────────────── */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.6); z-index: 80;
+  }
+  @media (max-width: 900px) {
+    .sidebar { transform: translateX(calc(-1 * var(--sidebar-w))); }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0 !important; }
+    .overlay.show { display: block; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="logo">KONG<span>/guide</span></div>
+  <div class="tagline">API Gateway · Docker Desktop · Kubernetes · Windows</div>
+  <button class="sidebar-toggle" onclick="toggleSidebar()">☰ Menu</button>
+</header>
+
+<div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+
+  <span class="nav-group-label">Getting Started</span>
+  <a class="nav-link" href="#home" data-section="home">
+    <span class="nav-icon">⌂</span> Overview
+  </a>
+  <a class="nav-link" href="#environment" data-section="environment">
+    <span class="nav-icon">⚙</span> Environment & Prerequisites
+  </a>
+  <a class="nav-link" href="#naming" data-section="naming">
+    <span class="nav-icon">⬡</span> Naming Conventions
+  </a>
+
+  <span class="nav-group-label">Kong Reference</span>
+  <a class="nav-link" href="#kong-concepts" data-section="kong-concepts">
+    <span class="nav-icon">◈</span> Kong Concepts
+  </a>
+  <a class="nav-link nav-sub" href="#kong-service" data-section="kong-service">Services</a>
+  <a class="nav-link nav-sub" href="#kong-route" data-section="kong-route">Routes — Anatomy</a>
+  <a class="nav-link nav-sub" href="#kong-upstream" data-section="kong-upstream">Upstreams & Targets</a>
+
+  <span class="nav-group-label">Deployment Strategies</span>
+  <a class="nav-link" href="#canary" data-section="canary">
+    <span class="nav-icon">◑</span> Canary Deployment
+  </a>
+  <a class="nav-link nav-sub" href="#canary-prereqs" data-section="canary-prereqs">Prerequisites</a>
+  <a class="nav-link nav-sub" href="#canary-build" data-section="canary-build">Build & Deploy YAMLs</a>
+  <a class="nav-link nav-sub" href="#canary-kong" data-section="canary-kong">Kong Configuration</a>
+  <a class="nav-link nav-sub" href="#canary-verify" data-section="canary-verify">Verify & Shift Traffic</a>
+
+  <a class="nav-link" href="#bluegreen" data-section="bluegreen">
+    <span class="nav-icon">⬡</span> Blue/Green Deployment
+  </a>
+  <a class="nav-link nav-sub" href="#bg-build" data-section="bg-build">Build & Deploy YAMLs</a>
+  <a class="nav-link nav-sub" href="#bg-kong" data-section="bg-kong">Kong Configuration</a>
+  <a class="nav-link nav-sub" href="#bg-cutover" data-section="bg-cutover">Cutover & Rollback</a>
+
+  <span class="nav-group-label">Operations</span>
+  <a class="nav-link" href="#traffic" data-section="traffic">
+    <span class="nav-icon">⇌</span> Traffic Management
+  </a>
+  <a class="nav-link" href="#cheatsheet" data-section="cheatsheet">
+    <span class="nav-icon">≡</span> Quick Reference
+  </a>
+
+</aside>
+
+<!-- MAIN -->
+<main class="main" id="main">
+
+  <!-- ═══════════════════════════ HOME ═══════════════════════════ -->
+  <section id="home">
+    <div class="hero">
+      <div class="kicker">Kong API Gateway Guide</div>
+      <h1>Deploy with confidence.<br><em>Ship without fear.</em></h1>
+      <p>A complete walkthrough for setting up Kong API Gateway on Windows with Docker Desktop Kubernetes — covering Canary and Blue/Green deployment strategies with live traffic switching.</p>
+      <div class="hero-badges">
+        <span class="badge badge-green">Kong Gateway</span>
+        <span class="badge badge-blue">Docker Desktop</span>
+        <span class="badge badge-blue">Kubernetes</span>
+        <span class="badge badge-yellow">.NET / Kestrel</span>
+        <span class="badge badge-purple">PowerShell</span>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="section-eyebrow">What's covered</div>
+      <div class="section-title">Guide Sections</div>
+      <div class="section-lead">Each section is self-contained. Start at the top for a full walkthrough, or jump to a specific strategy using the index below.</div>
+
+      <div class="index-grid">
+        <a class="index-card" href="#environment" style="--card-accent: var(--accent2)">
+          <span class="ic-num">01 — SETUP</span>
+          <div class="ic-title">Environment & Prerequisites</div>
+          <div class="ic-desc">hosts file, K8s context, existing Kong services, what's already running.</div>
+        </a>
+        <a class="index-card" href="#naming" style="--card-accent: var(--yellow)">
+          <span class="ic-num">02 — CONVENTIONS</span>
+          <div class="ic-title">Naming Conventions</div>
+          <div class="ic-desc">How Docker tags, YAML names, K8s service names, and Kong host values all connect.</div>
+        </a>
+        <a class="index-card" href="#kong-concepts" style="--card-accent: var(--accent3)">
+          <span class="ic-num">03 — REFERENCE</span>
+          <div class="ic-title">Kong Concepts</div>
+          <div class="ic-desc">Deep-dive into Services, Routes (every field explained), Upstreams, and Targets.</div>
+        </a>
+        <a class="index-card" href="#canary" style="--card-accent: var(--yellow)">
+          <span class="ic-num">04 — STRATEGY</span>
+          <div class="ic-title">Canary Deployment</div>
+          <div class="ic-desc">Gradual traffic shift using Kong Upstream weights. 70/30 → 50/50 → 0/100.</div>
+        </a>
+        <a class="index-card" href="#bluegreen" style="--card-accent: var(--accent3)">
+          <span class="ic-num">05 — STRATEGY</span>
+          <div class="ic-title">Blue/Green Deployment</div>
+          <div class="ic-desc">Zero-downtime instant cutover via a single Kong service PATCH command.</div>
+        </a>
+        <a class="index-card" href="#cheatsheet" style="--card-accent: var(--coral)">
+          <span class="ic-num">06 — REFERENCE</span>
+          <div class="ic-title">Quick Reference</div>
+          <div class="ic-desc">All PowerShell commands in one place. Copy and run.</div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ ENVIRONMENT ═══════════════════════════ -->
+  <section id="environment">
+    <div class="page-section">
+      <div class="section-eyebrow">01 — Setup</div>
+      <div class="section-title">Environment & Prerequisites</div>
+      <div class="section-lead">Your local Windows machine runs Docker Desktop with Kubernetes enabled. Kong is already deployed and accessible via Ingress — no port-forwarding needed.</div>
+
+      <h3>Infrastructure at a Glance</h3>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Component</th><th>Value</th><th>Notes</th></tr>
+          <tr><td>Kong Admin</td><td><code>http://kong-admin.local</code></td><td>Via NGINX Ingress</td></tr>
+          <tr><td>Kong Proxy</td><td><code>http://kong-proxy.local</code></td><td>All API traffic flows here</td></tr>
+          <tr><td>App Port</td><td><code>80</code> (container) → <code>80</code> (K8s service)</td><td>Kestrel on http://+:80</td></tr>
+          <tr><td>OTEL Collector</td><td><code>http://otel-collector:4317</code></td><td>In-cluster DNS</td></tr>
+          <tr><td>K8s Namespace</td><td><code>default</code></td><td>All resources deployed here</td></tr>
+          <tr><td>Node name</td><td><code>desktop-control-plane</code></td><td>Docker Desktop single-node cluster</td></tr>
+        </table>
+      </div>
+
+      <h3>Hosts File Entries (Windows)</h3>
+      <p>Located at <code>C:\Windows\System32\drivers\etc\hosts</code>. Run Notepad as Administrator to edit.</p>
+      <div class="code-wrap">
+        <div class="code-label">hosts</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-bash">127.0.0.1  kong-proxy.local
+127.0.0.1  kong-admin.local
+127.0.0.1  kong-ui.local
+127.0.0.1  keycloak.local
+127.0.0.1  elasticsearch.local
+127.0.0.1  kibana.local
+127.0.0.1  prometheus.local
+127.0.0.1  grafana.local
+127.0.0.1  vault.local</code></pre>
+      </div>
+
+      <h3>Verify Kong is Healthy</h3>
+      <div class="code-wrap">
+        <div class="code-label">PowerShell</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/status"
+# Expected: database.reachable = true</code></pre>
+      </div>
+
+      <h3>Existing Kong Routes at Time of This Guide</h3>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Route Name</th><th>Path</th><th>Kong Service</th><th>Purpose</th></tr>
+          <tr><td><code>api1-swagger-route</code></td><td><code>/swagger</code></td><td><code>api1-service</code></td><td>Swagger UI</td></tr>
+          <tr><td><code>api1-test-route</code></td><td><code>/test</code></td><td><code>api1-service</code></td><td>Canary test endpoint</td></tr>
+          <tr><td><code>api1-bg-route</code></td><td><code>/bgtest</code></td><td><code>api1-bg-service</code></td><td>Blue/Green test endpoint</td></tr>
+          <tr><td><code>vault-route</code></td><td><code>/</code></td><td><code>vault-service</code></td><td>HashiCorp Vault</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ NAMING ═══════════════════════════ -->
+  <section id="naming">
+    <div class="page-section">
+      <div class="section-eyebrow">02 — Conventions</div>
+      <div class="section-title">Naming Conventions</div>
+      <div class="section-lead">Every name in this system flows from a single source. Understanding this chain prevents the most common mistakes — especially the image tag mismatch that causes pods to fail on startup.</div>
+
+      <h3>The Full Naming Chain</h3>
+      <div class="flow">
+        <div class="flow-node fn-yellow"><strong>docker build -t</strong><br>api1-app:stable</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-blue"><strong>YAML: image:</strong><br>api1-app:stable</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-green"><strong>YAML: metadata.name</strong><br>api1-stable</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-purple"><strong>K8s Service name</strong><br>api1-stable-service</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-coral"><strong>Kong target</strong><br>api1-stable-service<br>.default.svc.cluster.local:80</div>
+      </div>
+
+      <div class="callout warning">
+        <div class="callout-title">⚠ The #1 Mistake</div>
+        <p>Building with <code>docker build -t api1-app:stable .</code> but writing <code>image: api1-app:v1</code> in the YAML. Kubernetes looks for the exact tag. If it doesn't match a local image and <code>imagePullPolicy: Always</code> is set, it tries Docker Hub — and fails. Always use <code>imagePullPolicy: IfNotPresent</code> for local images.</p>
+      </div>
+
+      <h3>Naming Table by Strategy</h3>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Strategy</th><th>Docker Tag</th><th>Deployment Name</th><th>K8s Service Name</th><th>Kong Target Host</th></tr>
+          <tr>
+            <td>Stable (baseline)</td>
+            <td><code>api1-app:stable</code></td>
+            <td><code>api1-stable</code></td>
+            <td><code>api1-stable-service</code></td>
+            <td><code>api1-stable-service.default.svc.cluster.local:80</code></td>
+          </tr>
+          <tr>
+            <td>Canary (new version)</td>
+            <td><code>api1-app:canary</code></td>
+            <td><code>api1-canary</code></td>
+            <td><code>api1-canary-service</code></td>
+            <td><code>api1-canary-service.default.svc.cluster.local:80</code></td>
+          </tr>
+          <tr>
+            <td>Blue (current live)</td>
+            <td><code>api1-app:blue</code></td>
+            <td><code>api1-blue</code></td>
+            <td><code>api1-blue-service</code></td>
+            <td><code>api1-blue-service.default.svc.cluster.local:80</code></td>
+          </tr>
+          <tr>
+            <td>Green (standby)</td>
+            <td><code>api1-app:green</code></td>
+            <td><code>api1-green</code></td>
+            <td><code>api1-green-service</code></td>
+            <td><code>api1-green-service.default.svc.cluster.local:80</code></td>
+          </tr>
+        </table>
+      </div>
+
+      <h3>How Deployment Names Propagate into Kong</h3>
+      <p>The YAML <code>metadata.name</code> of a <strong>K8s Service</strong> becomes the DNS name Kong uses as a target. Kong resolves it via Kubernetes internal DNS using the pattern:</p>
+      <div class="flow">
+        <div class="flow-node fn-blue">K8s Service name<br><code>api1-stable-service</code></div>
+        <div class="flow-arrow">+</div>
+        <div class="flow-node fn-green">namespace<br><code>default</code></div>
+        <div class="flow-arrow">+</div>
+        <div class="flow-node fn-purple">cluster suffix<br><code>svc.cluster.local</code></div>
+        <div class="flow-arrow">=</div>
+        <div class="flow-node fn-yellow">Kong target<br><code>api1-stable-service<br>.default.svc.cluster.local:80</code></div>
+      </div>
+
+      <h3>Environment Variables That Make Pods Identifiable</h3>
+      <p>These env vars are injected via the YAML and read by your .NET <code>Program.cs</code> to return pod identity in every response — essential for verifying which pod handled a request during testing.</p>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Env Var</th><th>Set In</th><th>Source</th><th>Example Value</th></tr>
+          <tr>
+            <td><code>APP_VERSION</code></td>
+            <td>YAML <code>env</code> block</td>
+            <td>Hardcoded string</td>
+            <td><code>v1-stable</code>, <code>v2-canary</code></td>
+          </tr>
+          <tr>
+            <td><code>DEPLOYMENT_SLOT</code></td>
+            <td>YAML <code>env</code> block</td>
+            <td>Hardcoded string</td>
+            <td><code>blue</code>, <code>green</code></td>
+          </tr>
+          <tr>
+            <td><code>POD_IP</code></td>
+            <td>YAML Downward API</td>
+            <td><code>status.podIP</code></td>
+            <td><code>10.244.0.14</code></td>
+          </tr>
+          <tr>
+            <td><code>HOSTNAME</code></td>
+            <td>Kubernetes automatic</td>
+            <td>Pod name</td>
+            <td><code>api1-stable-59f765b78-gx7zm</code></td>
+          </tr>
+        </table>
+      </div>
+
+      <h3>Program.cs — Reading Pod Identity</h3>
+      <div class="code-wrap">
+        <div class="code-label">C# — Program.cs</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-csharp">app.MapGet("/test", (ILogger&lt;Program&gt; logger) =>
+{
+    var podName    = Environment.GetEnvironmentVariable("HOSTNAME")           ?? "unknown";
+    var podIp      = Environment.GetEnvironmentVariable("POD_IP")             ?? "unknown";
+    var appVersion = Environment.GetEnvironmentVariable("APP_VERSION")        ?? "unknown";
+    var slot       = Environment.GetEnvironmentVariable("DEPLOYMENT_SLOT")    ?? "unknown";
+
+    logger.LogInformation("Hit {Slot}/{Version} on {Pod}", slot, appVersion, podName);
+
+    return Results.Ok(new
+    {
+        message    = "Telemetry working!",
+        version    = appVersion,
+        handledBy  = podName,
+        podIP      = podIp,
+        time       = DateTime.UtcNow
+    });
+});</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ KONG CONCEPTS ═══════════════════════════ -->
+  <section id="kong-concepts">
+    <div class="page-section">
+      <div class="section-eyebrow">03 — Reference</div>
+      <div class="section-title">Kong Concepts Deep Dive</div>
+      <div class="section-lead">Kong's three core objects — Service, Route, and Upstream — work together. Every field has a specific source. This section documents exactly where each value comes from in your local setup.</div>
+
+      <!-- KONG SERVICE -->
+      <h3 id="kong-service">Kong Service</h3>
+      <p>A Kong <strong>Service</strong> represents your upstream backend. It is the bridge between a Kong Route (the incoming request) and the actual server that handles it. In our setup, a Service either points to a <strong>direct K8s service DNS name</strong> (Blue/Green) or to a <strong>Kong Upstream name</strong> (Canary).</p>
+
+      <div class="anatomy-wrap">
+        <div class="anatomy-panel">
+          <div class="anatomy-header">Service → Direct K8s (Blue/Green)</div>
+          <div class="anatomy-body">
+            <div class="anno-row">
+              <div class="anno-key">name</div>
+              <div class="anno-val"><strong>api1-bg-service</strong><span class="src">You choose this. Referenced when creating routes.</span></div>
+            </div>
+            <div class="anno-row">
+              <div class="anno-key">host</div>
+              <div class="anno-val"><strong>api1-blue-service.default.svc.cluster.local</strong><span class="src">K8s Service name + namespace + cluster suffix. This is the PATCH target during cutover.</span></div>
+            </div>
+            <div class="anno-row">
+              <div class="anno-key">port</div>
+              <div class="anno-val"><strong>80</strong><span class="src">From K8s Service spec.ports[].port</span></div>
+            </div>
+            <div class="anno-row">
+              <div class="anno-key">protocol</div>
+              <div class="anno-val"><strong>http</strong><span class="src">Kestrel is on plain HTTP internally</span></div>
+            </div>
+            <div class="anno-row">
+              <div class="anno-key">path</div>
+              <div class="anno-val"><strong>/test</strong><span class="src">Set when your Kong route path ≠ app path. Here /bgtest → /test.</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="anatomy-panel">
+          <div class="anatomy-header">Service → Upstream (Canary)</div>
+          <div class="anatomy-body">
+            <div class="anno-row">
+              <div class="anno-key">name</div>
+              <div class="anno-val"><strong>api1-canary-svc</strong><span class="src">You choose this. Referenced when creating routes.</span></div>
+            </div>
+            <div class="anno-row">
+              <div class="anno-key">host</div>
+              <div class="anno-val"><strong>api1-upstream</strong><span class="src">The Kong Upstream name — NOT a DNS name. Kong resolves via its upstream registry.</span></div>
+            </div>
+            <div class="anno-row">
+              <div class="anno-key">port</div>
+              <div class="anno-val"><strong>80</strong><span class="src">Must match the port defined in each Upstream Target.</span></div>
+            </div>
+            <div class="anno-row">
+              <div class="anno-key">protocol</div>
+              <div class="anno-val"><strong>http</strong><span class="src">Kestrel is on plain HTTP internally</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- KONG ROUTE -->
+      <h3 id="kong-route">Kong Route — Full Anatomy</h3>
+      <p>A Route is the <strong>incoming request matcher</strong>. Every field in a Route controls how Kong decides whether an incoming HTTP request belongs to this route, and how it transforms the request before forwarding it.</p>
+
+      <div class="table-wrap">
+        <table>
+          <tr><th>Field</th><th>Value in our setup</th><th>Where it comes from / What it does</th></tr>
+          <tr>
+            <td><code>name</code></td>
+            <td><code>api1-test-route</code></td>
+            <td>You define this. Used as the identifier in Admin API calls. Convention: <code>{app}-{path}-route</code>.</td>
+          </tr>
+          <tr>
+            <td><code>paths</code></td>
+            <td><code>["/test"]</code></td>
+            <td>The URL prefix Kong listens on at the Proxy (<code>kong-proxy.local</code>). Incoming requests starting with this prefix are matched to this route.</td>
+          </tr>
+          <tr>
+            <td><code>strip_path</code></td>
+            <td><code>false</code> (test) / <code>true</code> (bgtest)</td>
+            <td><strong>false</strong> = forward the full path to the upstream (e.g. <code>/test</code> → <code>/test</code>). <strong>true</strong> = strip the matched prefix before forwarding (e.g. <code>/bgtest</code> → <code>/</code>, then Service.path appends <code>/test</code>).</td>
+          </tr>
+          <tr>
+            <td><code>protocols</code></td>
+            <td><code>["http","https"]</code></td>
+            <td>Kong accepts requests on both HTTP and HTTPS for this route. Default when not specified.</td>
+          </tr>
+          <tr>
+            <td><code>hosts</code></td>
+            <td><code>null</code></td>
+            <td>If set, Kong only matches requests with this Host header (e.g. <code>vault-route</code> has <code>vault.local</code>). Null means match any host.</td>
+          </tr>
+          <tr>
+            <td><code>methods</code></td>
+            <td><code>null</code></td>
+            <td>If set, restricts the route to specific HTTP methods (GET, POST, etc). Null means all methods are accepted.</td>
+          </tr>
+          <tr>
+            <td><code>service.id</code></td>
+            <td><code>20128166-0d92-...</code></td>
+            <td>The Kong Service this route belongs to. Set automatically when you create the route via <code>/services/{name}/routes</code>. This is how Kong knows where to forward the matched request.</td>
+          </tr>
+          <tr>
+            <td><code>path_handling</code></td>
+            <td><code>v0</code></td>
+            <td>Kong's path normalization mode. <code>v0</code> is the default and handles path prefix stripping correctly for most cases.</td>
+          </tr>
+          <tr>
+            <td><code>preserve_host</code></td>
+            <td><code>false</code></td>
+            <td><strong>false</strong> = Kong replaces the Host header with the upstream's hostname. <strong>true</strong> = Kong preserves the original client Host header when forwarding.</td>
+          </tr>
+          <tr>
+            <td><code>regex_priority</code></td>
+            <td><code>0</code></td>
+            <td>When multiple routes could match the same path, the one with the highest priority wins. Default 0 is fine when paths don't overlap.</td>
+          </tr>
+          <tr>
+            <td><code>request_buffering</code></td>
+            <td><code>true</code></td>
+            <td>Kong buffers the full request body before forwarding. Set to false for streaming/large uploads.</td>
+          </tr>
+          <tr>
+            <td><code>response_buffering</code></td>
+            <td><code>true</code></td>
+            <td>Kong buffers the full upstream response before sending to client. Set to false for streaming responses (SSE, etc).</td>
+          </tr>
+          <tr>
+            <td><code>https_redirect_status_code</code></td>
+            <td><code>426</code></td>
+            <td>HTTP status code returned when Kong redirects HTTP → HTTPS. 426 = Upgrade Required.</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="callout info">
+        <div class="callout-title">ℹ strip_path explained with an example</div>
+        <p>Route path: <code>/bgtest</code>, strip_path: <code>true</code>, Service path: <code>/test</code><br>
+        Client sends: <code>GET http://kong-proxy.local/bgtest</code><br>
+        Kong strips <code>/bgtest</code> → forwards to upstream as: <code>GET /test</code><br><br>
+        Route path: <code>/test</code>, strip_path: <code>false</code>, no Service path<br>
+        Client sends: <code>GET http://kong-proxy.local/test</code><br>
+        Kong preserves path → forwards as: <code>GET /test</code></p>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- UPSTREAM -->
+      <h3 id="kong-upstream">Kong Upstream & Targets</h3>
+      <p>An <strong>Upstream</strong> is Kong's built-in load balancer. It acts as a virtual hostname that sits between a Kong Service and multiple backend K8s services. <strong>Targets</strong> are the individual backend entries with weights.</p>
+
+      <div class="table-wrap">
+        <table>
+          <tr><th>Object</th><th>Field</th><th>Value</th><th>Meaning</th></tr>
+          <tr>
+            <td rowspan="2"><strong>Upstream</strong></td>
+            <td><code>name</code></td>
+            <td><code>api1-upstream</code></td>
+            <td>This is used as the <code>host</code> value in the Kong Service. Must match exactly.</td>
+          </tr>
+          <tr>
+            <td><code>algorithm</code></td>
+            <td><code>round-robin</code></td>
+            <td>How Kong distributes requests. Options: <code>round-robin</code>, <code>least-connections</code>, <code>consistent-hashing</code>.</td>
+          </tr>
+          <tr>
+            <td rowspan="2"><strong>Target</strong></td>
+            <td><code>target</code></td>
+            <td><code>api1-stable-service.default.svc.cluster.local:80</code></td>
+            <td>Full K8s DNS name of the backend service including port. Must be reachable from within the cluster.</td>
+          </tr>
+          <tr>
+            <td><code>weight</code></td>
+            <td><code>70</code> / <code>30</code></td>
+            <td>Relative weight. Kong distributes requests proportionally. 70+30=100 means 70% stable, 30% canary.</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="callout success">
+        <div class="callout-title">✓ Key architectural difference</div>
+        <p>When a Kong Service has <code>host: api1-upstream</code> — it routes through the Upstream load balancer (Canary strategy).<br>
+        When a Kong Service has <code>host: api1-blue-service.default.svc.cluster.local</code> — it routes directly to one K8s service (Blue/Green strategy).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ CANARY ═══════════════════════════ -->
+  <section id="canary">
+    <div class="page-section">
+      <div class="section-eyebrow">04 — Strategy</div>
+      <div class="section-title">Canary Deployment</div>
+      <div class="section-lead">Gradually shift traffic from a stable version to a new version by adjusting Kong Upstream target weights. No redeployment required to change traffic ratios. Instant rollback by setting weights back.</div>
+
+      <div class="compare-grid">
+        <div class="compare-card">
+          <div class="cc-title"><span class="cc-dot dot-green"></span>What it solves</div>
+          <ul>
+            <li>Blast radius control<span>small % of users hit new version</span></li>
+            <li>Real traffic validation<span>observe errors & latency in prod</span></li>
+            <li>Incremental confidence<span>shift 10→30→50→100 gradually</span></li>
+            <li>Instant rollback<span>PATCH weight back to 0</span></li>
+          </ul>
+        </div>
+        <div class="compare-card">
+          <div class="cc-title"><span class="cc-dot dot-yellow"></span>Kong mechanism</div>
+          <ul>
+            <li>Kong object<span>Upstream + Targets</span></li>
+            <li>K8s resources<span>2 Deployments + 2 Services</span></li>
+            <li>Switch command<span>PATCH target weight</span></li>
+            <li>Route changes<span>None — route unchanged</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 id="canary-prereqs">Traffic Flow</h3>
+      <div class="flow">
+        <div class="flow-node fn-blue">Client</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-blue">kong-proxy.local/test</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-purple">api1-test-route</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-blue">api1-service</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-yellow">api1-upstream</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-green">70% stable / 30% canary</div>
+      </div>
+
+      <h3 id="canary-build">Step 1 — Build Docker Images</h3>
+      <div class="code-wrap">
+        <div class="code-label">PowerShell — from your project root</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">docker build -t api1-app:stable .
+docker build -t api1-app:canary .</code></pre>
+      </div>
+
+      <div class="callout warning">
+        <div class="callout-title">⚠ Same codebase, different tags</div>
+        <p>Both images are built from the same code. The difference is the environment variables injected via YAML (<code>APP_VERSION</code>, <code>DEPLOYMENT_SLOT</code>). The image tag only needs to differ if you want to ensure the images are built from genuinely different code.</p>
+      </div>
+
+      <h3>Step 2 — Deploy Stable (api1-stable.yaml)</h3>
+      <div class="code-wrap">
+        <div class="code-label">api1-stable.yaml</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api1-stable
+  labels:
+    app: api1-app
+    version: stable
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api1-app
+      version: stable
+  template:
+    metadata:
+      labels:
+        app: api1-app
+        version: stable
+    spec:
+      nodeName: desktop-control-plane
+      containers:
+        - name: api1-app
+          image: api1-app:stable         # must match docker build tag
+          imagePullPolicy: IfNotPresent  # use local image
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Development"
+            - name: ASPNETCORE_URLS
+              value: "http://+:80"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector:4317"
+            - name: APP_VERSION
+              value: "v1-stable"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api1-stable-service
+spec:
+  type: ClusterIP
+  selector:
+    app: api1-app
+    version: stable          # only selects stable pods
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http</code></pre>
+      </div>
+
+      <h3>Step 3 — Deploy Canary (api1-canary.yaml)</h3>
+      <div class="code-wrap">
+        <div class="code-label">api1-canary.yaml</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api1-canary
+  labels:
+    app: api1-app
+    version: canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api1-app
+      version: canary
+  template:
+    metadata:
+      labels:
+        app: api1-app
+        version: canary
+    spec:
+      nodeName: desktop-control-plane
+      containers:
+        - name: api1-app
+          image: api1-app:canary
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Development"
+            - name: ASPNETCORE_URLS
+              value: "http://+:80"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector:4317"
+            - name: APP_VERSION
+              value: "v2-canary"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api1-canary-service
+spec:
+  type: ClusterIP
+  selector:
+    app: api1-app
+    version: canary          # only selects canary pods
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http</code></pre>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-label">PowerShell — Apply both</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">kubectl apply -f .\api1-stable.yaml
+kubectl apply -f .\api1-canary.yaml
+
+# Verify both pods are Running 1/1
+kubectl get pods -l app=api1-app</code></pre>
+      </div>
+
+      <h3 id="canary-kong">Step 4 — Configure Kong (one-time)</h3>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Create the Upstream</div>
+            <div class="code-wrap">
+              <div class="code-label">PowerShell</div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+              <pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/upstreams" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        name      = "api1-upstream"
+        algorithm = "round-robin"
+    } | ConvertTo-Json)</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Add Stable Target (weight 70)</div>
+            <div class="code-wrap">
+              <div class="code-label">PowerShell</div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+              <pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream/targets" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        target = "api1-stable-service.default.svc.cluster.local:80"
+        weight = 70
+    } | ConvertTo-Json)</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Add Canary Target (weight 30)</div>
+            <div class="code-wrap">
+              <div class="code-label">PowerShell</div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+              <pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream/targets" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        target = "api1-canary-service.default.svc.cluster.local:80"
+        weight = 30
+    } | ConvertTo-Json)</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Point Kong Service to the Upstream (PATCH existing service)</div>
+            <div class="code-wrap">
+              <div class="code-label">PowerShell</div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+              <pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-service" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{ host = "api1-upstream" } | ConvertTo-Json)</code></pre>
+            </div>
+            <div class="callout info" style="margin-top:12px">
+              <div class="callout-title">ℹ Why PATCH and not POST?</div>
+              <p><code>api1-service</code> already existed and <code>api1-test-route</code> already pointed to it. Instead of deleting and recreating — which would also delete the route — we simply update the <code>host</code> field. The route is untouched.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3 id="canary-verify">Step 5 — Verify Traffic Split</h3>
+      <div class="code-wrap">
+        <div class="code-label">PowerShell — Run 10 requests and tally</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">$results = 1..10 | ForEach-Object {
+    $r = Invoke-RestMethod -Uri "http://kong-proxy.local/test"
+    [PSCustomObject]@{ Request = $_; Version = $r.version; Pod = $r.handledBy }
+}
+$results | Format-Table -AutoSize
+$results | Group-Object Version | Select-Object Name, Count</code></pre>
+      </div>
+      <p>Expected output: <strong>~7</strong> responses from <code>v1-stable</code>, <strong>~3</strong> from <code>v2-canary</code>.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ BLUE/GREEN ═══════════════════════════ -->
+  <section id="bluegreen">
+    <div class="page-section">
+      <div class="section-eyebrow">05 — Strategy</div>
+      <div class="section-title">Blue/Green Deployment</div>
+      <div class="section-lead">Run two full environments simultaneously. Blue is live. Green is fully deployed and validated privately. A single PATCH command to the Kong Service switches all traffic instantly — with zero downtime and immediate rollback capability.</div>
+
+      <div class="compare-grid">
+        <div class="compare-card">
+          <div class="cc-title"><span class="cc-dot dot-blue"></span>What it solves</div>
+          <ul>
+            <li>Zero-downtime releases<span>no dropped connections</span></li>
+            <li>Full env validation<span>test green before going live</span></li>
+            <li>Instant rollback<span>one PATCH command</span></li>
+            <li>Database migration safety<span>both envs use same schema</span></li>
+          </ul>
+        </div>
+        <div class="compare-card">
+          <div class="cc-title"><span class="cc-dot dot-coral"></span>Kong mechanism</div>
+          <ul>
+            <li>Kong object<span>Service URL swap only</span></li>
+            <li>K8s resources<span>2 Deployments + 2 Services</span></li>
+            <li>Switch command<span>PATCH service host</span></li>
+            <li>No Upstream needed<span>direct K8s DNS target</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Traffic Flow — Before Switch</h3>
+      <div class="flow">
+        <div class="flow-node fn-blue">Client</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-blue">kong-proxy.local/bgtest</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-purple">api1-bg-route</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-blue">api1-bg-service<br><small>host: api1-blue-service…</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-blue">api1-blue pod (v1)</div>
+      </div>
+
+      <h3>Traffic Flow — After Switch</h3>
+      <div class="flow">
+        <div class="flow-node fn-blue">Client</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-blue">kong-proxy.local/bgtest</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-purple">api1-bg-route</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-green">api1-bg-service<br><small>host: api1-green-service…</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-green">api1-green pod (v2)</div>
+      </div>
+
+      <h3 id="bg-build">Step 1 — Build Docker Images</h3>
+      <div class="code-wrap">
+        <div class="code-label">PowerShell</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">docker build -t api1-app:blue .
+docker build -t api1-app:green .</code></pre>
+      </div>
+
+      <h3>Step 2 — Deploy Blue (api1-blue.yaml)</h3>
+      <div class="code-wrap">
+        <div class="code-label">api1-blue.yaml</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api1-blue
+  labels:
+    app: api1-app
+    slot: blue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api1-app
+      slot: blue
+  template:
+    metadata:
+      labels:
+        app: api1-app
+        slot: blue
+    spec:
+      nodeName: desktop-control-plane
+      containers:
+        - name: api1-app
+          image: api1-app:blue
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Development"
+            - name: ASPNETCORE_URLS
+              value: "http://+:80"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector:4317"
+            - name: APP_VERSION
+              value: "v1-blue"
+            - name: DEPLOYMENT_SLOT
+              value: "blue"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api1-blue-service
+spec:
+  type: ClusterIP
+  selector:
+    app: api1-app
+    slot: blue               # only routes to blue pods
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http</code></pre>
+      </div>
+
+      <h3>Step 3 — Deploy Green (api1-green.yaml)</h3>
+      <div class="code-wrap">
+        <div class="code-label">api1-green.yaml</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api1-green
+  labels:
+    app: api1-app
+    slot: green
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api1-app
+      slot: green
+  template:
+    metadata:
+      labels:
+        app: api1-app
+        slot: green
+    spec:
+      nodeName: desktop-control-plane
+      containers:
+        - name: api1-app
+          image: api1-app:green
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Development"
+            - name: ASPNETCORE_URLS
+              value: "http://+:80"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector:4317"
+            - name: APP_VERSION
+              value: "v2-green"
+            - name: DEPLOYMENT_SLOT
+              value: "green"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api1-green-service
+spec:
+  type: ClusterIP
+  selector:
+    app: api1-app
+    slot: green              # only routes to green pods
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http</code></pre>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-label">PowerShell — Apply separately</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">kubectl apply -f .\api1-blue.yaml
+kubectl apply -f .\api1-green.yaml
+
+# Verify all pods
+kubectl get pods -l app=api1-app</code></pre>
+      </div>
+
+      <h3 id="bg-kong">Step 4 — Kong Configuration (one-time)</h3>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Create Kong Service pointing to Blue</div>
+            <div class="code-wrap">
+              <div class="code-label">PowerShell</div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+              <pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        name     = "api1-bg-service"
+        host     = "api1-blue-service.default.svc.cluster.local"
+        port     = 80
+        protocol = "http"
+        path     = "/test"    # app only has /test; strip_path on route handles /bgtest
+    } | ConvertTo-Json)</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Create Route on /bgtest</div>
+            <div class="code-wrap">
+              <div class="code-label">PowerShell</div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+              <pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service/routes" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        name       = "api1-bg-route"
+        paths      = @("/bgtest")
+        strip_path = $true     # strips /bgtest; service.path appends /test
+    } | ConvertTo-Json)</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Verify Blue is Live</div>
+            <div class="code-wrap">
+              <div class="code-label">PowerShell</div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+              <pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-proxy.local/bgtest" | ConvertTo-Json
+# Expected: version = "v1-blue", slot = "blue"</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3 id="bg-cutover">Step 5 — Validate Green Privately (Before Cutover)</h3>
+      <div class="code-wrap">
+        <div class="code-label">PowerShell — Terminal 1</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">kubectl port-forward svc/api1-green-service 9090:80</code></pre>
+      </div>
+      <div class="code-wrap">
+        <div class="code-label">PowerShell — Terminal 2 (new window)</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">Invoke-RestMethod -Uri "http://localhost:9090/test" | ConvertTo-Json
+# Expected: version = "v2-green", slot = "green"</code></pre>
+      </div>
+
+      <h3>Step 6 — Cutover to Green</h3>
+      <div class="code-wrap">
+        <div class="code-label">PowerShell — The switch (one command)</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{
+        host = "api1-green-service.default.svc.cluster.local"
+    } | ConvertTo-Json)
+
+# Immediately verify
+Invoke-RestMethod -Uri "http://kong-proxy.local/bgtest" | ConvertTo-Json
+# Expected: version = "v2-green"</code></pre>
+      </div>
+
+      <h3>Step 7 — Rollback to Blue (if needed)</h3>
+      <div class="code-wrap">
+        <div class="code-label">PowerShell — Instant rollback</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{
+        host = "api1-blue-service.default.svc.cluster.local"
+    } | ConvertTo-Json)
+
+# Verify rollback
+Invoke-RestMethod -Uri "http://kong-proxy.local/bgtest" | ConvertTo-Json
+# Expected: version = "v1-blue"</code></pre>
+      </div>
+
+      <div class="callout success">
+        <div class="callout-title">✓ Keep Blue running after cutover</div>
+        <p>Do not scale down or delete the Blue deployment immediately after switching to Green. Keep it warm for at least one release cycle so rollback is instant. Only decommission Blue once you're confident Green is stable in production.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ TRAFFIC ═══════════════════════════ -->
+  <section id="traffic">
+    <div class="page-section">
+      <div class="section-eyebrow">06 — Operations</div>
+      <div class="section-title">Traffic Management</div>
+      <div class="section-lead">Shift canary traffic weight in phases without any redeployment. The Upstream weights are live — changes take effect immediately.</div>
+
+      <h3>Get Target IDs (run once, save the output)</h3>
+      <div class="code-wrap">
+        <div class="code-label">PowerShell</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">$targets  = Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream/targets"
+$stableId = ($targets.data | Where-Object { $_.target -like "*stable*" }).id
+$canaryId = ($targets.data | Where-Object { $_.target -like "*canary*" }).id
+Write-Host "Stable: $stableId"
+Write-Host "Canary: $canaryId"</code></pre>
+      </div>
+
+      <h3>Canary Promotion Phases</h3>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Phase</th><th>Stable Weight</th><th>Canary Weight</th><th>Use When</th></tr>
+          <tr><td>Initial</td><td>90</td><td>10</td><td>First exposure — minimal blast radius</td></tr>
+          <tr><td>Phase 2</td><td>70</td><td>30</td><td>No errors observed at 10%</td></tr>
+          <tr><td>Phase 3</td><td>50</td><td>50</td><td>Confidence growing — equal split</td></tr>
+          <tr><td>Full Promotion</td><td>0</td><td>100</td><td>Canary is now the stable version</td></tr>
+          <tr><td>Rollback</td><td>100</td><td>0</td><td>Errors detected — instant revert</td></tr>
+        </table>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-label">PowerShell — Phase helper function</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">function Set-CanaryWeights($stableWeight, $canaryWeight) {
+    Invoke-RestMethod `
+        -Uri "http://kong-admin.local/upstreams/api1-upstream/targets/$stableId" `
+        -Method PATCH -ContentType 'application/json' `
+        -Body (@{ weight = $stableWeight } | ConvertTo-Json)
+
+    Invoke-RestMethod `
+        -Uri "http://kong-admin.local/upstreams/api1-upstream/targets/$canaryId" `
+        -Method PATCH -ContentType 'application/json' `
+        -Body (@{ weight = $canaryWeight } | ConvertTo-Json)
+
+    Write-Host "Weights updated — Stable: $stableWeight | Canary: $canaryWeight"
+}
+
+# Usage:
+Set-CanaryWeights 70 30    # Phase 2
+Set-CanaryWeights 50 50    # Phase 3
+Set-CanaryWeights 0 100    # Full promotion
+Set-CanaryWeights 100 0    # Emergency rollback</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ CHEATSHEET ═══════════════════════════ -->
+  <section id="cheatsheet">
+    <div class="page-section">
+      <div class="section-eyebrow">07 — Reference</div>
+      <div class="section-title">Quick Reference</div>
+      <div class="section-lead">All essential commands in one place. No context needed.</div>
+
+      <h3>kubectl — Cluster State</h3>
+      <div class="code-wrap">
+        <div class="code-label">PowerShell</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">kubectl get pods -l app=api1-app          # list all api1 pods
+kubectl get svc                            # list all services
+kubectl describe pod &lt;pod-name&gt;           # pod detail + events
+kubectl logs deployment/api1-stable       # stable logs
+kubectl logs deployment/api1-canary       # canary logs
+kubectl logs deployment/api1-blue         # blue logs
+kubectl logs deployment/api1-green        # green logs
+kubectl port-forward svc/api1-green-service 9090:80  # private test</code></pre>
+      </div>
+
+      <h3>Kong Admin — Read State</h3>
+      <div class="code-wrap">
+        <div class="code-label">PowerShell</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services"  | ConvertTo-Json -Depth 3
+Invoke-RestMethod -Uri "http://kong-admin.local/routes"    | ConvertTo-Json -Depth 3
+Invoke-RestMethod -Uri "http://kong-admin.local/upstreams" | ConvertTo-Json -Depth 3
+Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream/targets" | ConvertTo-Json -Depth 3
+Invoke-RestMethod -Uri "http://kong-admin.local/routes/api1-test-route"  | ConvertTo-Json -Depth 4
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-service"   | ConvertTo-Json</code></pre>
+      </div>
+
+      <h3>Kong Admin — Modify</h3>
+      <div class="code-wrap">
+        <div class="code-label">PowerShell</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell"># Point service to upstream (canary mode)
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-service" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{ host = "api1-upstream" } | ConvertTo-Json)
+
+# Switch to Green (blue/green cutover)
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{ host = "api1-green-service.default.svc.cluster.local" } | ConvertTo-Json)
+
+# Rollback to Blue
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{ host = "api1-blue-service.default.svc.cluster.local" } | ConvertTo-Json)
+
+# Delete route
+Invoke-RestMethod -Uri "http://kong-admin.local/routes/api1-bg-route" -Method DELETE
+
+# Delete service
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service" -Method DELETE</code></pre>
+      </div>
+
+      <h3>Test Traffic Distribution</h3>
+      <div class="code-wrap">
+        <div class="code-label">PowerShell</div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><code class="language-powershell">$results = 1..20 | ForEach-Object {
+    $r = Invoke-RestMethod -Uri "http://kong-proxy.local/test"
+    [PSCustomObject]@{ Request = $_; Version = $r.version; Pod = $r.handledBy }
+}
+$results | Format-Table -AutoSize
+$results | Group-Object Version | Select-Object Name, Count</code></pre>
+      </div>
+
+      <h3>Comparison — Canary vs Blue/Green</h3>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Aspect</th><th>Canary</th><th>Blue/Green</th></tr>
+          <tr><td>Kong mechanism</td><td>Upstream + Targets weights</td><td>Service host URL swap</td></tr>
+          <tr><td>Traffic split</td><td>Gradual %, configurable</td><td>All-or-nothing</td></tr>
+          <tr><td>Kong objects required</td><td>Upstream + Targets + Service + Route</td><td>Service + Route only</td></tr>
+          <tr><td>Rollback command</td><td>PATCH target weights</td><td>PATCH service host</td></tr>
+          <tr><td>Pre-release validation</td><td>Limited (small % real traffic)</td><td>Full (port-forward to green)</td></tr>
+          <tr><td>Test route</td><td><code>/test</code></td><td><code>/bgtest</code></td></tr>
+          <tr><td>imagePullPolicy</td><td colspan="2"><code>IfNotPresent</code> — always for local Docker Desktop</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <span>Kong API Gateway Guide · Docker Desktop Kubernetes · Windows</span>
+    <span class="fl">Generated for local dev environment · api1-app · .NET / Kestrel</span>
+  </footer>
+
+</main>
+
+<script>
+hljs.highlightAll();
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const main    = document.getElementById('main');
+  const overlay = document.getElementById('overlay');
+  const isMobile = window.innerWidth <= 900;
+
+  if (isMobile) {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('show');
+  } else {
+    sidebar.classList.toggle('collapsed');
+    main.classList.toggle('expanded');
+  }
+}
+
+function copyCode(btn) {
+  const pre  = btn.closest('.code-wrap').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// Intersection Observer — auto highlight nav on scroll
+const sections = document.querySelectorAll('section[id], h3[id]');
+const navLinks  = document.querySelectorAll('.nav-link[data-section], .nav-link[href]');
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      navLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        link.classList.toggle('active', href === '#' + id);
+      });
+    }
+  });
+}, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+
+sections.forEach(s => observer.observe(s));
+
+// Click nav links — close mobile sidebar
+navLinks.forEach(link => {
+  link.addEventListener('click', () => {
+    if (window.innerWidth <= 900) {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('overlay').classList.remove('show');
+    }
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+# ------------------------------------------------------------
+# Deployment for the api1-app (canary)
+# ------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api1-canary
+  labels:
+    app: api1-app
+    version: canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api1-app
+      version: canary
+  template:
+    metadata:
+      labels:
+        app: api1-app
+        version: canary
+    spec:
+      nodeName: desktop-control-plane
+      containers:
+        - name: api1-app
+          image: api1-app:canary        # ← matches your docker build tag
+          imagePullPolicy: IfNotPresent # ← use local image
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Development"
+            - name: ASPNETCORE_URLS
+              value: "http://+:80"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector:4317"
+            - name: APP_VERSION
+              value: "v1-canary"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet:
+              path: /test
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /test
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+# ------------------------------------------------------------
+# Service to expose the app internally
+# ------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: api1-canary-service
+spec:
+  type: ClusterIP
+  selector:
+    app: api1-app
+    version: canary
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http
