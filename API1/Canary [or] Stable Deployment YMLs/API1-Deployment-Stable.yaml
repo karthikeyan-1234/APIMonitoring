@@ -20,7 +20,6 @@ spec:
         app: api1-app
         version: stable
     spec:
-      nodeName: desktop-control-plane
       containers:
         - name: api1-app
           image: api1-app:stable        # ← matches your docker build tag
