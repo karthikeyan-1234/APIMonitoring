@@ -1,0 +1,2163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kong API Gateway — Complete Deployment Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/powershell.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+<style>
+:root {
+  --bg:        #0d1117;
+  --bg2:       #161b22;
+  --bg3:       #1c2330;
+  --bg4:       #10151c;
+  --border:    #30363d;
+  --accent:    #00c9a7;
+  --accent2:   #007ea7;
+  --accent3:   #00a8e8;
+  --yellow:    #f0c940;
+  --coral:     #ff6b6b;
+  --purple:    #a78bfa;
+  --text:      #e6edf3;
+  --text2:     #8b949e;
+  --text3:     #6e7681;
+  --sw:        296px;
+  --hh:        62px;
+  --r:         10px;
+  --mono:      'JetBrains Mono', monospace;
+  --sans:      'DM Sans', sans-serif;
+  --disp:      'Syne', sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.75}
+
+/* ── HEADER ─────────────────────────────────────── */
+.hdr{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  height:var(--hh);background:rgba(13,17,23,.95);
+  backdrop-filter:blur(14px);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 20px;gap:14px;
+}
+.hdr-logo{font-family:var(--disp);font-size:17px;font-weight:800;color:var(--accent);letter-spacing:-.5px;white-space:nowrap}
+.hdr-logo span{color:var(--text2);font-weight:400}
+.hdr-tag{color:var(--text3);font-size:12px;border-left:1px solid var(--border);padding-left:14px;white-space:nowrap}
+.pn-cfg{margin-left:auto;display:flex;align-items:center;gap:8px}
+.pn-cfg label{font-family:var(--mono);font-size:11px;color:var(--text3);white-space:nowrap}
+.pn-cfg input{
+  font-family:var(--mono);font-size:12px;
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--accent3);padding:5px 10px;border-radius:6px;
+  width:120px;outline:none;transition:border-color .15s;
+}
+.pn-cfg input:focus{border-color:var(--accent)}
+.pn-cfg button{
+  background:rgba(0,201,167,.12);border:1px solid rgba(0,201,167,.35);
+  color:var(--accent);font-size:12px;font-family:var(--mono);
+  padding:5px 12px;border-radius:6px;cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.pn-cfg button:hover{background:rgba(0,201,167,.22)}
+.sb-toggle{
+  background:none;border:1px solid var(--border);
+  color:var(--text2);padding:5px 11px;border-radius:6px;
+  cursor:pointer;font-size:13px;font-family:var(--sans);
+  transition:all .2s;white-space:nowrap;
+}
+.sb-toggle:hover{border-color:var(--accent);color:var(--accent)}
+@media(max-width:900px){.hdr-tag,.pn-cfg label{display:none}}
+
+/* ── LAYOUT ──────────────────────────────────────── */
+.layout{display:flex;margin-top:var(--hh);min-height:calc(100vh - var(--hh))}
+
+/* ── SIDEBAR ─────────────────────────────────────── */
+.sb{
+  width:var(--sw);flex-shrink:0;
+  position:fixed;top:var(--hh);left:0;
+  height:calc(100vh - var(--hh));
+  overflow-y:auto;background:var(--bg2);
+  border-right:1px solid var(--border);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  z-index:190;padding:16px 0 60px;
+}
+.sb.collapsed{transform:translateX(calc(-1 * var(--sw)))}
+.sb::-webkit-scrollbar{width:3px}
+.sb::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+.nav-grp-label{
+  font-family:var(--mono);font-size:9.5px;font-weight:700;
+  letter-spacing:1.8px;text-transform:uppercase;
+  color:var(--text3);padding:18px 18px 5px;display:block;
+}
+.nl{
+  display:flex;align-items:center;gap:9px;
+  padding:7px 18px;color:var(--text2);text-decoration:none;
+  font-size:13px;font-weight:400;
+  border-left:3px solid transparent;
+  transition:all .12s;cursor:pointer;
+}
+.nl:hover{color:var(--text);background:rgba(255,255,255,.035)}
+.nl.active{color:var(--accent);border-left-color:var(--accent);background:rgba(0,201,167,.07);font-weight:500}
+.nl .ico{font-size:14px;width:17px;text-align:center;flex-shrink:0}
+.nl.sub{padding-left:42px;font-size:12px;color:var(--text3)}
+.nl.sub:hover{color:var(--text2);background:rgba(255,255,255,.025)}
+.nl.sub.active{color:var(--accent);border-left-color:var(--accent);background:rgba(0,201,167,.05)}
+
+/* ── MAIN ────────────────────────────────────────── */
+.main{flex:1;margin-left:var(--sw);transition:margin-left .3s cubic-bezier(.4,0,.2,1);min-width:0}
+.main.exp{margin-left:0}
+
+/* ── HERO ────────────────────────────────────────── */
+.hero{
+  padding:72px 60px 56px;border-bottom:1px solid var(--border);
+  background:linear-gradient(135deg,var(--bg) 0%,var(--bg3) 100%);
+  position:relative;overflow:hidden;
+}
+.hero::before{
+  content:'';position:absolute;top:-100px;right:-100px;
+  width:560px;height:560px;
+  background:radial-gradient(circle,rgba(0,201,167,.07) 0%,transparent 68%);
+  pointer-events:none;
+}
+.hero::after{
+  content:'';position:absolute;bottom:-60px;left:20%;
+  width:400px;height:400px;
+  background:radial-gradient(circle,rgba(0,126,167,.05) 0%,transparent 68%);
+  pointer-events:none;
+}
+.kicker{
+  font-family:var(--mono);font-size:11px;font-weight:500;
+  color:var(--accent);letter-spacing:2px;text-transform:uppercase;
+  margin-bottom:18px;display:flex;align-items:center;gap:10px;
+}
+.kicker::before{content:'';display:inline-block;width:28px;height:1px;background:var(--accent)}
+.hero h1{
+  font-family:var(--disp);font-size:clamp(28px,4.5vw,48px);
+  font-weight:800;line-height:1.1;letter-spacing:-1.5px;
+  color:var(--text);margin-bottom:20px;
+}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero p{font-size:15.5px;color:var(--text2);max-width:600px;line-height:1.8;margin-bottom:32px}
+.badges{display:flex;gap:9px;flex-wrap:wrap}
+.badge{font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid}
+.bg{color:var(--accent);border-color:rgba(0,201,167,.35);background:rgba(0,201,167,.09)}
+.bb{color:var(--accent3);border-color:rgba(0,168,232,.35);background:rgba(0,168,232,.09)}
+.by{color:var(--yellow);border-color:rgba(240,201,64,.35);background:rgba(240,201,64,.09)}
+.bp{color:var(--purple);border-color:rgba(167,139,250,.35);background:rgba(167,139,250,.09)}
+.bc{color:var(--coral);border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.09)}
+
+/* ── SECTION ─────────────────────────────────────── */
+.ps{padding:60px;border-bottom:1px solid var(--border);max-width:980px}
+@media(max-width:900px){.ps{padding:36px 22px}.hero{padding:44px 22px 36px}}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent2);margin-bottom:8px}
+.sec-title{font-family:var(--disp);font-size:clamp(22px,2.8vw,30px);font-weight:700;letter-spacing:-.5px;color:var(--text);margin-bottom:12px;line-height:1.2}
+.sec-lead{font-size:15px;color:var(--text2);max-width:700px;line-height:1.8;margin-bottom:32px}
+
+h3{font-family:var(--disp);font-size:17px;font-weight:700;color:var(--text);margin:34px 0 10px}
+h4{font-family:var(--sans);font-size:13px;font-weight:500;color:var(--accent);margin:20px 0 6px;text-transform:uppercase;letter-spacing:1px}
+p{color:var(--text2);margin-bottom:12px}
+strong{color:var(--text);font-weight:500}
+ul{padding-left:20px;margin-bottom:12px}
+li{color:var(--text2);font-size:14px;margin-bottom:4px}
+
+/* ── CODE COLLAPSE ───────────────────────────────── */
+.cb{margin:14px 0 20px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.cb-hdr{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 14px;background:var(--bg3);cursor:pointer;
+  user-select:none;transition:background .12s;border-bottom:1px solid transparent;
+}
+.cb-hdr:hover{background:#1f2937}
+.cb-hdr.open{border-bottom-color:var(--border)}
+.cb-arrow{width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text3);transition:transform .2s;font-size:10px}
+.cb-arrow.open{transform:rotate(90deg)}
+.lang-ps  {font-family:var(--mono);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;padding:2px 8px;border-radius:4px;border:1px solid;flex-shrink:0;color:#5f9ea0;border-color:rgba(95,158,160,.4);background:rgba(95,158,160,.08)}
+.lang-yaml{font-family:var(--mono);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;padding:2px 8px;border-radius:4px;border:1px solid;flex-shrink:0;color:var(--yellow);border-color:rgba(240,201,64,.35);background:rgba(240,201,64,.07)}
+.lang-sh  {font-family:var(--mono);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;padding:2px 8px;border-radius:4px;border:1px solid;flex-shrink:0;color:var(--text3);border-color:var(--border);background:rgba(110,118,129,.08)}
+.lang-cs  {font-family:var(--mono);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;padding:2px 8px;border-radius:4px;border:1px solid;flex-shrink:0;color:var(--purple);border-color:rgba(167,139,250,.35);background:rgba(167,139,250,.07)}
+.cb-title{font-family:var(--mono);font-size:11.5px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cb-body{display:none;position:relative}
+.cb-body.open{display:block}
+.cb-body pre{margin:0!important;border-radius:0!important;border:none!important;font-family:var(--mono)!important;font-size:12.5px!important;line-height:1.65!important}
+.cb-body pre code{font-family:var(--mono)!important}
+.copy-btn{
+  position:absolute;top:8px;right:10px;
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--text3);font-size:10.5px;font-family:var(--mono);
+  padding:3px 9px;border-radius:4px;cursor:pointer;transition:all .12s;z-index:5;
+}
+.copy-btn:hover,.copy-btn.ok{color:var(--accent);border-color:var(--accent)}
+
+/* inline code */
+code:not(pre code){font-family:var(--mono);font-size:12px;background:rgba(110,118,129,.14);border:1px solid var(--border);padding:1px 6px;border-radius:4px;color:var(--accent3)}
+.pn{color:var(--yellow)}
+
+/* ── TABLES ──────────────────────────────────────── */
+.tw{overflow-x:auto;margin:16px 0 24px;border-radius:var(--r);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse}
+th{background:var(--bg3);font-family:var(--mono);font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--text2);padding:11px 15px;text-align:left;border-bottom:1px solid var(--border)}
+td{padding:10px 15px;font-size:13.5px;color:var(--text2);border-bottom:1px solid rgba(48,54,61,.5);vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.018)}
+td code{font-size:11.5px}
+
+/* ── CALLOUT ─────────────────────────────────────── */
+.callout{padding:14px 18px;border-radius:var(--r);border-left:4px solid;margin:16px 0;font-size:13.5px;line-height:1.7}
+.callout-title{font-family:var(--disp);font-weight:700;font-size:12.5px;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.callout p{margin:0;color:var(--text2)}
+.info   {background:rgba(0,168,232,.08);border-color:var(--accent3)}
+.info   .callout-title{color:var(--accent3)}
+.warn   {background:rgba(240,201,64,.07);border-color:var(--yellow)}
+.warn   .callout-title{color:var(--yellow)}
+.ok     {background:rgba(0,201,167,.07);border-color:var(--accent)}
+.ok     .callout-title{color:var(--accent)}
+.danger {background:rgba(255,107,107,.08);border-color:var(--coral)}
+.danger .callout-title{color:var(--coral)}
+
+/* ── STEPS ───────────────────────────────────────── */
+.steps{display:flex;flex-direction:column}
+.step{display:flex;gap:18px;padding:0 0 28px;position:relative}
+.step::before{content:'';position:absolute;left:17px;top:38px;width:1px;bottom:0;background:var(--border)}
+.step:last-child::before{display:none}
+.step-n{width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--accent2);color:var(--accent);font-family:var(--mono);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;z-index:1}
+.step-b{flex:1;padding-top:5px}
+.step-title{font-family:var(--disp);font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px}
+
+/* ── FLOW ────────────────────────────────────────── */
+.flow{display:flex;align-items:center;gap:0;flex-wrap:wrap;margin:16px 0;padding:16px 18px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border)}
+.fn{padding:7px 13px;border-radius:6px;font-family:var(--mono);font-size:11px;border:1px solid;white-space:nowrap;line-height:1.4}
+.fn small{display:block;font-size:9.5px;opacity:.7;margin-top:2px}
+.fa{color:var(--text3);padding:0 7px;font-size:14px;flex-shrink:0}
+.fn-b{color:var(--accent3);border-color:rgba(0,168,232,.4);background:rgba(0,168,232,.08)}
+.fn-g{color:var(--accent);border-color:rgba(0,201,167,.4);background:rgba(0,201,167,.08)}
+.fn-y{color:var(--yellow);border-color:rgba(240,201,64,.4);background:rgba(240,201,64,.08)}
+.fn-p{color:var(--purple);border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.08)}
+.fn-c{color:var(--coral);border-color:rgba(255,107,107,.4);background:rgba(255,107,107,.08)}
+
+/* ── ANATOMY ─────────────────────────────────────── */
+.anw{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:16px 0}
+@media(max-width:720px){.anw{grid-template-columns:1fr}}
+.anp{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.anh{background:var(--bg4);padding:9px 14px;font-family:var(--mono);font-size:10.5px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+.anb{padding:14px}
+.anr{display:flex;gap:10px;margin-bottom:10px;align-items:flex-start}
+.ank{font-family:var(--mono);font-size:11.5px;color:var(--accent3);flex-shrink:0;width:148px;padding-top:1px}
+.anv{font-size:13px;color:var(--text2)}
+.anv strong{color:var(--text)}
+.anv .src{font-family:var(--mono);font-size:10.5px;color:var(--text3);display:block;margin-top:2px}
+
+/* ── COMPARE ─────────────────────────────────────── */
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:20px 0}
+@media(max-width:680px){.cg{grid-template-columns:1fr}}
+.cc{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:22px}
+.cc-title{font-family:var(--disp);font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:9px}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.dg{background:var(--accent)}.dy{background:var(--yellow)}.db{background:var(--accent3)}.dc{background:var(--coral)}.dp{background:var(--purple)}
+.cc ul{list-style:none;padding:0}
+.cc li{font-size:13px;color:var(--text2);padding:5px 0;border-bottom:1px solid rgba(48,54,61,.5);display:flex;justify-content:space-between;align-items:center}
+.cc li:last-child{border-bottom:none}
+.cc li span{color:var(--text3);font-size:11.5px;font-family:var(--mono)}
+
+/* ── INDEX CARDS ─────────────────────────────────── */
+.ig{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:28px}
+.ic{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:22px;text-decoration:none;display:block;transition:all .18s;position:relative;overflow:hidden}
+.ic::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--ca,var(--accent))}
+.ic:hover{border-color:var(--ca,var(--accent));transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.ic-n{font-family:var(--mono);font-size:9.5px;color:var(--text3);letter-spacing:2px;margin-bottom:7px;display:block}
+.ic-t{font-family:var(--disp);font-size:16px;font-weight:700;color:var(--text);margin-bottom:7px;line-height:1.3}
+.ic-d{font-size:12.5px;color:var(--text3);line-height:1.6}
+
+/* ── DIVIDER ─────────────────────────────────────── */
+.div{height:1px;background:var(--border);margin:30px 0}
+
+/* ── FOOTER ──────────────────────────────────────── */
+.ftr{padding:36px 60px;border-top:1px solid var(--border);color:var(--text3);font-size:12.5px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.ftr .r{margin-left:auto;font-family:var(--mono);font-size:10.5px}
+
+/* ── OVERLAY ─────────────────────────────────────── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:180}
+@media(max-width:900px){
+  .sb{transform:translateX(calc(-1 * var(--sw)))}
+  .sb.open{transform:translateX(0)}
+  .main{margin-left:0!important}
+  .overlay.show{display:block}
+}
+.hljs{background:#0d1117!important}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="hdr-logo">KONG<span>/guide</span></div>
+  <div class="hdr-tag">API Gateway · Docker Desktop · Kubernetes · Windows</div>
+  <div class="pn-cfg">
+    <label>Project name:</label>
+    <input type="text" id="pnInput" value="api1" placeholder="api1" maxlength="30">
+    <button onclick="applyPN()">Apply</button>
+  </div>
+  <button class="sb-toggle" onclick="toggleSB()">☰ Menu</button>
+</header>
+
+<div class="overlay" id="overlay" onclick="toggleSB()"></div>
+
+<!-- SIDEBAR -->
+<aside class="sb" id="sb">
+  <span class="nav-grp-label">Getting Started</span>
+  <a class="nl" href="#home"        ><span class="ico">⌂</span> Overview</a>
+  <a class="nl" href="#environment" ><span class="ico">⚙</span> Environment & Prerequisites</a>
+  <a class="nl" href="#naming"      ><span class="ico">⬡</span> Naming Conventions</a>
+
+  <span class="nav-grp-label">Kong Reference</span>
+  <a class="nl"     href="#kong-concepts"><span class="ico">◈</span> Kong Concepts</a>
+  <a class="nl sub" href="#kong-service"  >Services</a>
+  <a class="nl sub" href="#kong-route"    >Routes — Anatomy</a>
+  <a class="nl sub" href="#kong-upstream" >Upstreams &amp; Targets</a>
+
+  <span class="nav-grp-label">Deployment Strategies</span>
+  <a class="nl"     href="#canary"       ><span class="ico">◑</span> Canary Deployment</a>
+  <a class="nl sub" href="#canary-build" >Build &amp; Deploy YAMLs</a>
+  <a class="nl sub" href="#canary-kong"  >Kong Configuration</a>
+  <a class="nl sub" href="#canary-verify">Verify &amp; Shift Traffic</a>
+
+  <a class="nl"     href="#bluegreen"  ><span class="ico">⬡</span> Blue/Green Deployment</a>
+  <a class="nl sub" href="#bg-build"   >Build &amp; Deploy YAMLs</a>
+  <a class="nl sub" href="#bg-kong"    >Kong Configuration</a>
+  <a class="nl sub" href="#bg-cutover" >Cutover &amp; Rollback</a>
+
+  <a class="nl"     href="#header-routing" ><span class="ico">⇀</span> Header-Based Routing</a>
+  <a class="nl sub" href="#hdr-canary"     >Canary via Header</a>
+  <a class="nl sub" href="#hdr-bluegreen"  >Blue/Green via Header</a>
+  <a class="nl sub" href="#hdr-rollback"   >Rollback</a>
+
+  <span class="nav-grp-label">Operations</span>
+  <a class="nl" href="#traffic"   ><span class="ico">⇌</span> Traffic Management</a>
+  <a class="nl" href="#cheatsheet"><span class="ico">≡</span> Quick Reference</a>
+</aside>
+
+<!-- MAIN -->
+<main class="main" id="main">
+
+<!-- ════════════════════════════════════════════════
+     HOME
+════════════════════════════════════════════════ -->
+<section id="home">
+  <div class="hero">
+    <div class="kicker">Kong API Gateway — Complete Guide</div>
+    <h1>Deploy with confidence.<br><em>Ship without fear.</em></h1>
+    <p>A complete end-to-end reference for Kong API Gateway on Windows with Docker Desktop Kubernetes — covering Canary, Blue/Green, and Header-Based routing strategies from first <code>docker build</code> through live traffic switching.</p>
+    <div class="badges">
+      <span class="badge bg">Kong Gateway</span>
+      <span class="badge bb">Docker Desktop</span>
+      <span class="badge bb">Kubernetes</span>
+      <span class="badge by">.NET 9 / Kestrel</span>
+      <span class="badge bp">PowerShell</span>
+      <span class="badge bc">Header Routing</span>
+    </div>
+  </div>
+
+  <div class="ps">
+    <div class="eyebrow">What's covered</div>
+    <div class="sec-title">Guide Sections</div>
+    <div class="sec-lead">Each section is self-contained. Follow top-to-bottom for a full walkthrough, or jump directly to a strategy. Use the <strong>Project name</strong> field in the top bar to replace <code>api1</code> everywhere — all YAMLs, PowerShell commands, K8s service names, and Kong targets update instantly.</div>
+    <div class="ig">
+      <a class="ic" href="#environment" style="--ca:var(--accent2)">
+        <span class="ic-n">01 — SETUP</span>
+        <div class="ic-t">Environment &amp; Prerequisites</div>
+        <div class="ic-d">Hosts file, K8s context, infrastructure overview, Kong health check.</div>
+      </a>
+      <a class="ic" href="#naming" style="--ca:var(--yellow)">
+        <span class="ic-n">02 — CONVENTIONS</span>
+        <div class="ic-t">Naming Conventions</div>
+        <div class="ic-d">How Docker image tags, YAML names, K8s services, and Kong targets all chain together.</div>
+      </a>
+      <a class="ic" href="#kong-concepts" style="--ca:var(--accent3)">
+        <span class="ic-n">03 — REFERENCE</span>
+        <div class="ic-t">Kong Concepts</div>
+        <div class="ic-d">Deep-dive into Services, Routes (every field), Upstreams, and Targets.</div>
+      </a>
+      <a class="ic" href="#canary" style="--ca:var(--yellow)">
+        <span class="ic-n">04 — STRATEGY</span>
+        <div class="ic-t">Canary Deployment</div>
+        <div class="ic-d">Gradual traffic shift via Kong Upstream weights. Full object chain from K8s to Kong.</div>
+      </a>
+      <a class="ic" href="#bluegreen" style="--ca:var(--accent3)">
+        <span class="ic-n">05 — STRATEGY</span>
+        <div class="ic-t">Blue/Green Deployment</div>
+        <div class="ic-d">Zero-downtime instant cutover via a single Kong service host PATCH.</div>
+      </a>
+      <a class="ic" href="#header-routing" style="--ca:var(--coral)">
+        <span class="ic-n">06 — STRATEGY</span>
+        <div class="ic-t">Header-Based Routing</div>
+        <div class="ic-d">Route by request header and priority. Zero impact on existing stable routes.</div>
+      </a>
+      <a class="ic" href="#traffic" style="--ca:var(--purple)">
+        <span class="ic-n">07 — OPS</span>
+        <div class="ic-t">Traffic Management</div>
+        <div class="ic-d">Weight promotion phases, helper functions, canary lifecycle.</div>
+      </a>
+      <a class="ic" href="#cheatsheet" style="--ca:var(--coral)">
+        <span class="ic-n">08 — REFERENCE</span>
+        <div class="ic-t">Quick Reference</div>
+        <div class="ic-d">All PowerShell commands, comparisons, and admin reads in one place.</div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════
+     ENVIRONMENT
+════════════════════════════════════════════════ -->
+<section id="environment">
+  <div class="ps">
+    <div class="eyebrow">01 — Setup</div>
+    <div class="sec-title">Environment &amp; Prerequisites</div>
+    <div class="sec-lead">Your local Windows machine runs Docker Desktop with Kubernetes enabled. Kong is already deployed and accessible via NGINX Ingress — no port-forwarding needed for admin or proxy access during normal operations.</div>
+
+    <h3>Infrastructure at a Glance</h3>
+    <div class="tw"><table>
+      <tr><th>Component</th><th>Value</th><th>Notes</th></tr>
+      <tr><td>Kong Admin API</td><td><code>http://kong-admin.local</code></td><td>Via NGINX Ingress — no port-forward needed</td></tr>
+      <tr><td>Kong Proxy</td><td><code>http://kong-proxy.local</code></td><td>All client API traffic flows here</td></tr>
+      <tr><td>App container port</td><td><code>80</code></td><td>Kestrel listening on <code>http://+:80</code></td></tr>
+      <tr><td>K8s Service port</td><td><code>80 → 80</code></td><td>ClusterIP, targetPort 80</td></tr>
+      <tr><td>OTEL Collector</td><td><code>http://otel-collector:4317</code></td><td>In-cluster DNS, gRPC</td></tr>
+      <tr><td>K8s Namespace</td><td><code>default</code></td><td>All resources deployed here</td></tr>
+      <tr><td>Node name</td><td><code>desktop-control-plane</code></td><td>Docker Desktop single-node cluster</td></tr>
+    </table></div>
+
+    <h3>Windows Hosts File</h3>
+    <p>Located at <code>C:\Windows\System32\drivers\etc\hosts</code>. Open Notepad <strong>as Administrator</strong> to edit and save.</p>
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-sh">hosts</span>
+        <span class="cb-title">C:\Windows\System32\drivers\etc\hosts — all local DNS entries</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-bash">127.0.0.1  kong-proxy.local
+127.0.0.1  kong-admin.local
+127.0.0.1  kong-ui.local
+127.0.0.1  keycloak.local
+127.0.0.1  elasticsearch.local
+127.0.0.1  kibana.local
+127.0.0.1  prometheus.local
+127.0.0.1  grafana.local
+127.0.0.1  vault.local</code></pre></div>
+    </div>
+
+    <h3>Verify Kong is Healthy</h3>
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Check Kong admin status — confirms DB is reachable</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/status" | ConvertTo-Json
+# Look for: database.reachable = true</code></pre></div>
+    </div>
+
+    <h3>Kong Objects Created by This Guide</h3>
+    <p>This guide assumes a <strong>fresh Kong instance</strong> with no pre-existing services, routes, or upstreams for this project. Every Kong object required by each strategy is created from scratch in the steps below. The table summarises all objects this guide will create across all strategies — none of them need to exist before you begin.</p>
+    <div class="tw"><table>
+      <tr><th>Type</th><th>Name</th><th>Path / Host</th><th>Created In</th></tr>
+      <tr><td>Service</td><td><code class="pn">api1</code><code>-service</code></td><td>K8s DNS → then Upstream</td><td>Canary — Step 4</td></tr>
+      <tr><td>Route</td><td><code class="pn">api1</code><code>-test-route</code></td><td><code>/test</code></td><td>Canary — Step 4</td></tr>
+      <tr><td>Upstream</td><td><code class="pn">api1</code><code>-upstream</code></td><td>round-robin LB</td><td>Canary — Step 4</td></tr>
+      <tr><td>Service</td><td><code class="pn">api1</code><code>-bg-service</code></td><td>Blue K8s DNS initially</td><td>Blue/Green — Step 4</td></tr>
+      <tr><td>Route</td><td><code class="pn">api1</code><code>-bg-route</code></td><td><code>/bgtest</code></td><td>Blue/Green — Step 4</td></tr>
+      <tr><td>Service</td><td><code class="pn">api1</code><code>-canary-direct</code></td><td>Canary K8s DNS</td><td>Header Routing — Canary</td></tr>
+      <tr><td>Route</td><td><code class="pn">api1</code><code>-canary-header-route</code></td><td><code>/test</code> + <code>X-Canary: true</code></td><td>Header Routing — Canary</td></tr>
+      <tr><td>Service</td><td><code class="pn">api1</code><code>-green-direct</code></td><td>Green K8s DNS</td><td>Header Routing — Blue/Green</td></tr>
+      <tr><td>Route</td><td><code class="pn">api1</code><code>-green-header-route</code></td><td><code>/bgtest</code> + <code>X-Slot: green</code></td><td>Header Routing — Blue/Green</td></tr>
+    </table></div>
+    <div class="callout ok">
+      <div class="callout-title">✓ Zero assumptions about pre-existing Kong state</div>
+      <p>Each strategy section is fully self-contained. You do not need to run one strategy before another. Follow any section top-to-bottom and every required Kong object will be created in order within that section's steps.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════
+     NAMING
+════════════════════════════════════════════════ -->
+<section id="naming">
+  <div class="ps">
+    <div class="eyebrow">02 — Conventions</div>
+    <div class="sec-title">Naming Conventions</div>
+    <div class="sec-lead">Every name flows from a single source of truth. The Docker image tag you pass to <code>docker build -t</code> must appear verbatim in the YAML <code>image:</code> field. The K8s Service <code>metadata.name</code> becomes the DNS name Kong resolves. Getting this chain wrong is the single most common cause of pod crashes and 502 errors.</div>
+
+    <h3>The Full Naming Chain</h3>
+    <div class="flow">
+      <div class="fn fn-y"><strong>docker build -t</strong><br><span class="pn">api1</span>-app:stable</div>
+      <div class="fa">→</div>
+      <div class="fn fn-b"><strong>YAML image:</strong><br><span class="pn">api1</span>-app:stable</div>
+      <div class="fa">→</div>
+      <div class="fn fn-g"><strong>metadata.name</strong><br><span class="pn">api1</span>-stable</div>
+      <div class="fa">→</div>
+      <div class="fn fn-p"><strong>K8s Service</strong><br><span class="pn">api1</span>-stable-service</div>
+      <div class="fa">→</div>
+      <div class="fn fn-c"><strong>Kong target</strong><br><span class="pn">api1</span>-stable-service<br>.default.svc.cluster.local:80</div>
+    </div>
+
+    <div class="callout warn">
+      <div class="callout-title">⚠ The #1 Mistake — image tag mismatch</div>
+      <p>Building with <code>docker build -t <span class="pn">api1</span>-app:stable .</code> but writing <code>image: <span class="pn">api1</span>-app:v1</code> in the YAML causes the pod to fail. Kubernetes looks for the exact tag in the local Docker image store. With <code>imagePullPolicy: IfNotPresent</code>, if the tag doesn't exist locally, the pod enters <code>ImagePullBackOff</code>. Always build and reference the same tag.</p>
+    </div>
+
+    <h3>Naming Table by Strategy</h3>
+    <p>The <strong>Docker Image Name</strong> column is the exact string stored in Docker's local image store after <code>docker build</code>. Run <code>docker images</code> to confirm it exists before applying any YAML.</p>
+    <div class="tw"><table>
+      <tr><th>Strategy</th><th>docker build -t …</th><th>Image in Docker store</th><th>K8s Deployment name</th><th>K8s Service name</th><th>Kong target host</th></tr>
+      <tr>
+        <td>Stable (baseline)</td>
+        <td><code><span class="pn">api1</span>-app:stable</code></td>
+        <td><code><span class="pn">api1</span>-app:stable</code></td>
+        <td><code><span class="pn">api1</span>-stable</code></td>
+        <td><code><span class="pn">api1</span>-stable-service</code></td>
+        <td><code><span class="pn">api1</span>-stable-service.default.svc.cluster.local:80</code></td>
+      </tr>
+      <tr>
+        <td>Canary</td>
+        <td><code><span class="pn">api1</span>-app:canary</code></td>
+        <td><code><span class="pn">api1</span>-app:canary</code></td>
+        <td><code><span class="pn">api1</span>-canary</code></td>
+        <td><code><span class="pn">api1</span>-canary-service</code></td>
+        <td><code><span class="pn">api1</span>-canary-service.default.svc.cluster.local:80</code></td>
+      </tr>
+      <tr>
+        <td>Blue (current live)</td>
+        <td><code><span class="pn">api1</span>-app:blue</code></td>
+        <td><code><span class="pn">api1</span>-app:blue</code></td>
+        <td><code><span class="pn">api1</span>-blue</code></td>
+        <td><code><span class="pn">api1</span>-blue-service</code></td>
+        <td><code><span class="pn">api1</span>-blue-service.default.svc.cluster.local:80</code></td>
+      </tr>
+      <tr>
+        <td>Green (new / standby)</td>
+        <td><code><span class="pn">api1</span>-app:green</code></td>
+        <td><code><span class="pn">api1</span>-app:green</code></td>
+        <td><code><span class="pn">api1</span>-green</code></td>
+        <td><code><span class="pn">api1</span>-green-service</code></td>
+        <td><code><span class="pn">api1</span>-green-service.default.svc.cluster.local:80</code></td>
+      </tr>
+    </table></div>
+
+    <h3>K8s Service DNS → Kong Target Pattern</h3>
+    <div class="flow">
+      <div class="fn fn-b">K8s Service name<br><code><span class="pn">api1</span>-stable-service</code></div>
+      <div class="fa">+</div>
+      <div class="fn fn-g">namespace<br><code>default</code></div>
+      <div class="fa">+</div>
+      <div class="fn fn-p">cluster suffix<br><code>svc.cluster.local</code></div>
+      <div class="fa">+</div>
+      <div class="fn fn-y">port<br><code>:80</code></div>
+      <div class="fa">=</div>
+      <div class="fn fn-c">Kong target<br><code><span class="pn">api1</span>-stable-service<br>.default.svc.cluster.local:80</code></div>
+    </div>
+
+    <h3>Pod Identity Environment Variables</h3>
+    <p>These env vars are injected via YAML and read by <code>Program.cs</code> to return pod identity in every response — essential for confirming which pod handled a request during traffic split testing.</p>
+    <div class="tw"><table>
+      <tr><th>Env Var</th><th>Set In</th><th>Source</th><th>Example Value</th></tr>
+      <tr><td><code>APP_VERSION</code></td><td>YAML <code>env</code> block</td><td>Hardcoded string</td><td><code>v1-stable</code>, <code>v2-canary</code>, <code>v1-blue</code>, <code>v2-green</code></td></tr>
+      <tr><td><code>DEPLOYMENT_SLOT</code></td><td>YAML <code>env</code> block</td><td>Hardcoded string</td><td><code>stable</code>, <code>canary</code>, <code>blue</code>, <code>green</code></td></tr>
+      <tr><td><code>POD_IP</code></td><td>YAML Downward API</td><td><code>status.podIP</code></td><td><code>10.244.0.14</code></td></tr>
+      <tr><td><code>HOSTNAME</code></td><td>Kubernetes automatic</td><td>Pod name</td><td><code><span class="pn">api1</span>-stable-59f7b78-gx7zm</code></td></tr>
+    </table></div>
+
+    <h3>Program.cs — /test endpoint (.NET 9)</h3>
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-cs">C#</span>
+        <span class="cb-title">Program.cs — minimal API /test endpoint returning full pod identity</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-csharp">app.MapGet("/test", (ILogger&lt;Program&gt; logger) =>
+{
+    var podName = Environment.GetEnvironmentVariable("HOSTNAME")        ?? "unknown";
+    var podIp   = Environment.GetEnvironmentVariable("POD_IP")          ?? "unknown";
+    var version = Environment.GetEnvironmentVariable("APP_VERSION")     ?? "unknown";
+    var slot    = Environment.GetEnvironmentVariable("DEPLOYMENT_SLOT") ?? "unknown";
+
+    logger.LogInformation("Request handled by slot={Slot} version={Version} pod={Pod}",
+        slot, version, podName);
+
+    return Results.Ok(new {
+        message   = "OK",
+        version,
+        slot,
+        handledBy = podName,
+        podIP     = podIp,
+        time      = DateTime.UtcNow
+    });
+});</code></pre></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════
+     KONG CONCEPTS
+════════════════════════════════════════════════ -->
+<section id="kong-concepts">
+  <div class="ps">
+    <div class="eyebrow">03 — Reference</div>
+    <div class="sec-title">Kong Concepts Deep Dive</div>
+    <div class="sec-lead">Three core Kong objects handle every request: Service, Route, and Upstream. Understanding exactly what each field does — and where its value comes from — prevents the most common configuration mistakes.</div>
+
+    <h3 id="kong-service">Kong Service</h3>
+    <p>A Kong <strong>Service</strong> is the outbound connection definition — it tells Kong where to forward a matched request. Its <code>host</code> field is either a <strong>direct K8s DNS name</strong> (Blue/Green strategy) or a <strong>Kong Upstream name</strong> (Canary strategy). These are fundamentally different; one is DNS-resolved, the other is resolved via Kong's upstream registry.</p>
+
+    <div class="anw">
+      <div class="anp">
+        <div class="anh">Service → Direct K8s DNS (Blue/Green)</div>
+        <div class="anb">
+          <div class="anr"><div class="ank">name</div><div class="anv"><strong><span class="pn">api1</span>-bg-service</strong><span class="src">You define this. Routes reference it to attach themselves.</span></div></div>
+          <div class="anr"><div class="ank">host</div><div class="anv"><strong><span class="pn">api1</span>-blue-service.default.svc.cluster.local</strong><span class="src">K8s Service FQDN. This single field is what you PATCH during a cutover.</span></div></div>
+          <div class="anr"><div class="ank">port</div><div class="anv"><strong>80</strong><span class="src">Must match K8s Service spec.ports[].port</span></div></div>
+          <div class="anr"><div class="ank">protocol</div><div class="anv"><strong>http</strong><span class="src">Kestrel runs plain HTTP inside the cluster</span></div></div>
+          <div class="anr"><div class="ank">path</div><div class="anv"><strong>/test</strong><span class="src">Appended after strip_path removes the route prefix. Used when the app endpoint differs from the public route prefix.</span></div></div>
+        </div>
+      </div>
+      <div class="anp">
+        <div class="anh">Service → Kong Upstream (Canary)</div>
+        <div class="anb">
+          <div class="anr"><div class="ank">name</div><div class="anv"><strong><span class="pn">api1</span>-service</strong><span class="src">You create this in Step 4-1. The route you create in Step 4-2 references it.</span></div></div>
+          <div class="anr"><div class="ank">host</div><div class="anv"><strong><span class="pn">api1</span>-upstream</strong><span class="src">The Kong Upstream name — NOT a DNS hostname. Kong resolves via its internal upstream registry. Setting this is what activates load balancing.</span></div></div>
+          <div class="anr"><div class="ank">port</div><div class="anv"><strong>80</strong><span class="src">Must match the port in each upstream Target entry</span></div></div>
+          <div class="anr"><div class="ank">protocol</div><div class="anv"><strong>http</strong><span class="src">Kestrel runs plain HTTP inside the cluster</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="div"></div>
+
+    <h3 id="kong-route">Kong Route — Full Field Anatomy</h3>
+    <p>A Route is the <strong>incoming request matcher</strong>. Kong evaluates all routes and forwards the request to the Service of the first matching route. Understanding every field prevents silent mismatch bugs.</p>
+    <div class="tw"><table>
+      <tr><th>Field</th><th>Value in this setup</th><th>Meaning</th></tr>
+      <tr><td><code>name</code></td><td><code><span class="pn">api1</span>-test-route</code></td><td>Unique identifier. Used in Admin API calls. Convention: <code>{app}-{path}-route</code>.</td></tr>
+      <tr><td><code>paths</code></td><td><code>["/test"]</code></td><td>URL prefix Kong listens for on the Proxy. Requests whose path starts with this value are matched.</td></tr>
+      <tr><td><code>strip_path</code></td><td><code>false</code> for <code>/test</code> · <code>true</code> for <code>/bgtest</code></td><td><strong>false</strong> = full path forwarded as-is. <strong>true</strong> = route prefix stripped before forwarding; Service.path then prepends the app path.</td></tr>
+      <tr><td><code>headers</code></td><td><code>null</code> (normal) · <code>{"X-Canary":["true"]}</code> (header routing)</td><td>If set, only requests carrying this exact header and value match this route. Used for header-based traffic targeting.</td></tr>
+      <tr><td><code>regex_priority</code></td><td><code>0</code> (default) · <code>10</code> (header route)</td><td>When multiple routes match the same path, the highest priority wins. Header routes must be higher than the base route.</td></tr>
+      <tr><td><code>protocols</code></td><td><code>["http","https"]</code></td><td>Kong accepts both protocols. Default when not specified.</td></tr>
+      <tr><td><code>hosts</code></td><td><code>null</code></td><td>Null = match any Host header. Set to <code>["vault.local"]</code> to restrict to a specific virtual host.</td></tr>
+      <tr><td><code>methods</code></td><td><code>null</code></td><td>Null = all HTTP methods accepted. Set to <code>["GET","POST"]</code> to restrict.</td></tr>
+      <tr><td><code>preserve_host</code></td><td><code>false</code></td><td><strong>false</strong> = Kong sets Host header to upstream hostname. <strong>true</strong> = original client Host header preserved.</td></tr>
+      <tr><td><code>path_handling</code></td><td><code>v0</code></td><td>Default. Handles path prefix stripping correctly for standard cases.</td></tr>
+      <tr><td><code>request_buffering</code></td><td><code>true</code></td><td>Set <code>false</code> for streaming uploads or large request bodies.</td></tr>
+      <tr><td><code>response_buffering</code></td><td><code>true</code></td><td>Set <code>false</code> for SSE or streaming responses.</td></tr>
+    </table></div>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ strip_path + Service.path in action</div>
+      <p>
+        <strong>Route: <code>/bgtest</code> · strip_path: true · Service.path: <code>/test</code></strong><br>
+        Client sends <code>GET /bgtest</code> → Kong strips <code>/bgtest</code> leaving <code>/</code> → prepends Service.path → upstream receives <code>GET /test</code><br><br>
+        <strong>Route: <code>/test</code> · strip_path: false · no Service.path</strong><br>
+        Client sends <code>GET /test</code> → Kong preserves path → upstream receives <code>GET /test</code>
+      </p>
+    </div>
+
+    <div class="div"></div>
+
+    <h3 id="kong-upstream">Kong Upstream &amp; Targets</h3>
+    <p>An <strong>Upstream</strong> is Kong's built-in load balancer. It acts as a virtual hostname referenced by a Kong Service. <strong>Targets</strong> are the actual backend K8s service DNS addresses with weights. Adjusting target weights is how canary traffic shifting works — no service or route changes needed.</p>
+    <div class="tw"><table>
+      <tr><th>Object</th><th>Field</th><th>Value</th><th>Meaning</th></tr>
+      <tr><td rowspan="2"><strong>Upstream</strong></td><td><code>name</code></td><td><code><span class="pn">api1</span>-upstream</code></td><td>Used verbatim as the <code>host</code> in the Kong Service. Must match exactly — Kong resolves this name through its upstream registry, not DNS.</td></tr>
+      <tr><td><code>algorithm</code></td><td><code>round-robin</code></td><td>Request distribution algorithm. Options: <code>round-robin</code>, <code>least-connections</code>, <code>consistent-hashing</code>.</td></tr>
+      <tr><td rowspan="2"><strong>Target</strong></td><td><code>target</code></td><td><code><span class="pn">api1</span>-stable-service.default.svc.cluster.local:80</code></td><td>Full K8s FQDN + port. Must be reachable from inside the cluster. Kong resolves this via cluster DNS.</td></tr>
+      <tr><td><code>weight</code></td><td><code>70</code> / <code>30</code></td><td>Relative weight. 70+30=100 → 70% of requests go to stable, 30% to canary. Set to <code>0</code> to drain a target without deleting it.</td></tr>
+    </table></div>
+
+    <div class="callout ok">
+      <div class="callout-title">✓ The key architectural difference between strategies</div>
+      <p>
+        <strong>Canary</strong>: Kong Service <code>host</code> = <code><span class="pn">api1</span>-upstream</code> → routes through Kong's load balancer across multiple K8s services by weight.<br>
+        <strong>Blue/Green</strong>: Kong Service <code>host</code> = <code><span class="pn">api1</span>-blue-service.default.svc.cluster.local</code> → routes directly to one K8s service. Cutover = PATCH <code>host</code> to the green K8s service DNS name.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════
+     CANARY
+════════════════════════════════════════════════ -->
+<section id="canary">
+  <div class="ps">
+    <div class="eyebrow">04 — Strategy</div>
+    <div class="sec-title">Canary Deployment</div>
+    <div class="sec-lead">Gradually shift traffic from a stable version to a new version by adjusting Kong Upstream target weights. No route changes, no service recreations. Rollback is immediate by setting the canary weight back to 0.</div>
+
+    <div class="cg">
+      <div class="cc">
+        <div class="cc-title"><span class="dot dg"></span>What it solves</div>
+        <ul>
+          <li>Blast radius control<span>only a % of users hit new version</span></li>
+          <li>Real-traffic validation<span>observe errors &amp; latency in prod</span></li>
+          <li>Incremental confidence<span>10→30→50→100 at your own pace</span></li>
+          <li>Instant rollback<span>PATCH canary weight to 0</span></li>
+        </ul>
+      </div>
+      <div class="cc">
+        <div class="cc-title"><span class="dot dy"></span>Kong object chain</div>
+        <ul>
+          <li>K8s resources<span>2 Deployments + 2 K8s Services</span></li>
+          <li>Kong Upstream<span>api1-upstream (load balancer)</span></li>
+          <li>Kong Targets<span>stable:70 + canary:30</span></li>
+          <li>Kong Service<span>api1-service → host: api1-upstream</span></li>
+          <li>Kong Route<span>api1-test-route → /test (created in Step 4)</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>End-to-End Traffic Flow</h3>
+    <div class="flow">
+      <div class="fn fn-b">Client<br><small>GET /test</small></div><div class="fa">→</div>
+      <div class="fn fn-b">kong-proxy.local<br><small>ingress</small></div><div class="fa">→</div>
+      <div class="fn fn-p"><span class="pn">api1</span>-test-route<br><small>matches /test</small></div><div class="fa">→</div>
+      <div class="fn fn-b"><span class="pn">api1</span>-service<br><small>host: api1-upstream</small></div><div class="fa">→</div>
+      <div class="fn fn-y"><span class="pn">api1</span>-upstream<br><small>load balancer</small></div><div class="fa">→</div>
+      <div class="fn fn-g">stable (70%)<br>or canary (30%)<br><small>K8s pod</small></div>
+    </div>
+
+    <h3 id="canary-build">Step 1 — Build Docker Images</h3>
+    <p>Both images are built from your project root. They can be built from the same codebase — the difference is the <code>APP_VERSION</code> and <code>DEPLOYMENT_SLOT</code> env vars injected via YAML. Use different source branches if deploying genuinely different code.</p>
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Build stable and canary images — confirm both appear in Docker image store</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell"># Build stable — image stored locally as: api1-app:stable
+docker build -t api1-app:stable .
+
+# Build canary — image stored locally as: api1-app:canary
+docker build -t api1-app:canary .
+
+# Confirm both images exist in Docker's local store before applying any YAML
+docker images --filter "reference=api1-app"</code></pre></div>
+    </div>
+
+    <h3>Step 2 — Deploy Stable to Kubernetes</h3>
+    <div class="cb">
+      <div class="cb-hdr" onclick="tog(this)">
+        <span class="cb-arrow">▶</span><span class="lang-yaml">YAML</span>
+        <span class="cb-title">api1-stable.yaml — Deployment + ClusterIP Service</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body"><pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api1-stable
+  labels:
+    app: api1-app
+    version: stable
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api1-app
+      version: stable
+  template:
+    metadata:
+      labels:
+        app: api1-app
+        version: stable
+    spec:
+      nodeName: desktop-control-plane
+      containers:
+        - name: api1-app
+          image: api1-app:stable        # must exactly match: docker build -t api1-app:stable
+          imagePullPolicy: IfNotPresent # REQUIRED for local Docker Desktop images
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Development"
+            - name: ASPNETCORE_URLS
+              value: "http://+:80"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector:4317"
+            - name: APP_VERSION
+              value: "v1-stable"
+            - name: DEPLOYMENT_SLOT
+              value: "stable"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api1-stable-service       # this name becomes the Kong target DNS component
+spec:
+  type: ClusterIP
+  selector:
+    app: api1-app
+    version: stable               # selects ONLY stable pods
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http</code></pre></div>
+    </div>
+
+    <h3>Step 3 — Deploy Canary to Kubernetes</h3>
+    <div class="cb">
+      <div class="cb-hdr" onclick="tog(this)">
+        <span class="cb-arrow">▶</span><span class="lang-yaml">YAML</span>
+        <span class="cb-title">api1-canary.yaml — Deployment + ClusterIP Service</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body"><pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api1-canary
+  labels:
+    app: api1-app
+    version: canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api1-app
+      version: canary
+  template:
+    metadata:
+      labels:
+        app: api1-app
+        version: canary
+    spec:
+      nodeName: desktop-control-plane
+      containers:
+        - name: api1-app
+          image: api1-app:canary        # must exactly match: docker build -t api1-app:canary
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Development"
+            - name: ASPNETCORE_URLS
+              value: "http://+:80"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector:4317"
+            - name: APP_VERSION
+              value: "v2-canary"
+            - name: DEPLOYMENT_SLOT
+              value: "canary"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api1-canary-service       # this name becomes the Kong target DNS component
+spec:
+  type: ClusterIP
+  selector:
+    app: api1-app
+    version: canary               # selects ONLY canary pods
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http</code></pre></div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Apply both YAMLs and confirm pods are Running 1/1</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell">kubectl apply -f .\api1-stable.yaml
+kubectl apply -f .\api1-canary.yaml
+
+# Both pods must show STATUS=Running and READY=1/1 before proceeding
+kubectl get pods -l app=api1-app -w</code></pre></div>
+    </div>
+
+    <h3 id="canary-kong">Step 4 — Configure Kong</h3>
+    <p>The complete Kong object chain for Canary is: <strong>Kong Service → Kong Route → Upstream → Targets</strong>. Starting from a clean slate, we create all four objects in order: first the Service and its Route (so traffic can flow), then the Upstream and Targets (to enable load balancing), and finally we redirect the Service to point at the Upstream.</p>
+
+    <div class="flow" style="margin-bottom:24px">
+      <div class="fn fn-b">① Create Kong Service<br><small>host = stable K8s DNS initially</small></div><div class="fa">→</div>
+      <div class="fn fn-p">② Create Kong Route<br><small>/test · attached to Service</small></div><div class="fa">→</div>
+      <div class="fn fn-y">③ Create Upstream<br><small>+ add Targets</small></div><div class="fa">→</div>
+      <div class="fn fn-b">④ PATCH Kong Service<br><small>host → upstream name</small></div><div class="fa">→</div>
+      <div class="fn fn-g">⑤ Verify Route<br><small>still points to service</small></div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-b">
+          <div class="step-title">Create the Kong Service — initially pointing at the Stable K8s service</div>
+          <p style="margin-bottom:8px">This Kong Service is the outbound connection definition. It starts pointing directly at the Stable K8s service DNS. Later (Step 4) we PATCH its <code>host</code> to point at the Upstream instead, activating load balancing. Creating it first allows us to immediately attach a Route in Step 2.</p>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">POST /services — create api1-service targeting stable K8s service directly</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        name     = "api1-service"
+        host     = "api1-stable-service.default.svc.cluster.local"
+        port     = 80
+        protocol = "http"
+    } | ConvertTo-Json)
+
+# Confirm the service was created correctly
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-service" |
+    Select-Object name, host, port, protocol | Format-List</code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-b">
+          <div class="step-title">Create the Kong Route on /test — attached to api1-service</div>
+          <p style="margin-bottom:8px">A Route is the incoming request matcher. This route listens for any request whose path starts with <code>/test</code> and forwards it to <code>api1-service</code>. <code>strip_path: false</code> means the full <code>/test</code> path is forwarded as-is to the upstream. This route is created once and never needs to change — only the Service's <code>host</code> field changes when we activate the Upstream in Step 4.</p>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">POST /services/api1-service/routes — api1-test-route on /test</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-service/routes" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        name       = "api1-test-route"
+        paths      = @("/test")
+        strip_path = $false     # forward full /test path to upstream as-is
+    } | ConvertTo-Json)
+
+# Confirm the route was created and linked to the correct service
+Invoke-RestMethod -Uri "http://kong-admin.local/routes/api1-test-route" | ConvertTo-Json -Depth 4</code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-b">
+          <div class="step-title">Create the Kong Upstream</div>
+          <p style="margin-bottom:8px">The Upstream is Kong's virtual load balancer. Its <code>name</code> is what you'll set as the <code>host</code> in the Kong Service (Step 4). It is <em>not</em> a DNS hostname — Kong resolves it via its internal upstream registry.</p>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">POST /upstreams — create api1-upstream with round-robin</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/upstreams" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        name      = "api1-upstream"
+        algorithm = "round-robin"
+    } | ConvertTo-Json)
+
+# Confirm it was created
+Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream" | ConvertTo-Json</code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">5</div>
+        <div class="step-b">
+          <div class="step-title">Add the Stable Target (weight 70)</div>
+          <p style="margin-bottom:8px">Targets are the actual K8s service DNS addresses. The <code>target</code> field must be the full K8s FQDN with port — exactly as it appears in the naming table above.</p>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">POST /upstreams/api1-upstream/targets — stable K8s service at 70%</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream/targets" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        target = "api1-stable-service.default.svc.cluster.local:80"
+        weight = 70
+    } | ConvertTo-Json)</code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">6</div>
+        <div class="step-b">
+          <div class="step-title">Add the Canary Target (weight 30)</div>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">POST /upstreams/api1-upstream/targets — canary K8s service at 30%</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream/targets" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        target = "api1-canary-service.default.svc.cluster.local:80"
+        weight = 30
+    } | ConvertTo-Json)
+
+# Confirm both targets are registered
+Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream/targets" |
+    Select-Object -ExpandProperty data |
+    Select-Object target, weight | Format-Table -AutoSize</code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">7</div>
+        <div class="step-b">
+          <div class="step-title">Redirect the Kong Service to the Upstream</div>
+          <p style="margin-bottom:8px">
+            <code><span class="pn">api1</span>-service</code> was created in Step 1 pointing at the Stable K8s DNS. Now we PATCH only its <code>host</code> field to point at the Upstream name — this activates Kong's load balancer so all traffic flowing through <code>api1-test-route</code> is distributed across Stable and Canary by weight. The route itself is completely untouched.
+          </p>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">PATCH /services/api1-service — point host at Upstream name (activates load balancing)</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-service" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{ host = "api1-upstream" } | ConvertTo-Json)
+
+# Confirm the service host is now the upstream name
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-service" |
+    Select-Object name, host, port | Format-List</code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">8</div>
+        <div class="step-b">
+          <div class="step-title">Confirm the Route is still intact</div>
+          <p style="margin-bottom:8px">Verify that <code><span class="pn">api1</span>-test-route</code> still exists and still references <code><span class="pn">api1</span>-service</code>. The service PATCH does not affect routes.</p>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">GET /routes/api1-test-route — confirm path and service link are unchanged</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/routes/api1-test-route" | ConvertTo-Json -Depth 4
+# Confirm: paths=["/test"], service.id matches api1-service</code></pre></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3 id="canary-verify">Step 5 — Verify Traffic Split</h3>
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Send 10 requests and tally — expect ~7 stable / ~3 canary responses</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell">$results = 1..10 | ForEach-Object {
+    $r = Invoke-RestMethod -Uri "http://kong-proxy.local/test"
+    [PSCustomObject]@{
+        Request = $_
+        Version = $r.version
+        Slot    = $r.slot
+        Pod     = $r.handledBy
+    }
+}
+$results | Format-Table -AutoSize
+Write-Host "`nSummary:"
+$results | Group-Object Version | Select-Object Name, Count | Format-Table -AutoSize</code></pre></div>
+    </div>
+    <p>Expected: <strong>~7</strong> responses show <code>version = "v1-stable"</code>, <strong>~3</strong> show <code>version = "v2-canary"</code>. The exact split varies slightly due to round-robin distribution.</p>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════
+     BLUE / GREEN
+════════════════════════════════════════════════ -->
+<section id="bluegreen">
+  <div class="ps">
+    <div class="eyebrow">05 — Strategy</div>
+    <div class="sec-title">Blue/Green Deployment</div>
+    <div class="sec-lead">Run two full environments simultaneously. Blue is live. Green is fully deployed and privately validated before any public traffic touches it. A single PATCH to the Kong Service's <code>host</code> field switches all traffic instantly — zero downtime, immediate rollback.</div>
+
+    <div class="cg">
+      <div class="cc">
+        <div class="cc-title"><span class="dot db"></span>What it solves</div>
+        <ul>
+          <li>Zero-downtime releases<span>no dropped connections</span></li>
+          <li>Full env validation<span>test green in prod before cutover</span></li>
+          <li>Instant rollback<span>one PATCH command</span></li>
+          <li>Predictable switchover<span>all-or-nothing, no partial state</span></li>
+        </ul>
+      </div>
+      <div class="cc">
+        <div class="cc-title"><span class="dot dc"></span>Kong object chain</div>
+        <ul>
+          <li>K8s resources<span>2 Deployments + 2 K8s Services</span></li>
+          <li>Kong Service<span>api1-bg-service (new, dedicated)</span></li>
+          <li>Kong Route<span>api1-bg-route → /bgtest (new)</span></li>
+          <li>No Upstream needed<span>direct K8s DNS target</span></li>
+          <li>Cutover<span>PATCH service host only</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>End-to-End Traffic Flow</h3>
+    <div class="flow">
+      <div class="fn fn-b">Client<br><small>GET /bgtest</small></div><div class="fa">→</div>
+      <div class="fn fn-b">kong-proxy.local<br><small>ingress</small></div><div class="fa">→</div>
+      <div class="fn fn-p"><span class="pn">api1</span>-bg-route<br><small>matches /bgtest</small></div><div class="fa">→</div>
+      <div class="fn fn-b"><span class="pn">api1</span>-bg-service<br><small>host: blue or green K8s DNS</small></div><div class="fa">→</div>
+      <div class="fn fn-g">blue pod (v1)<br>or green pod (v2)<br><small>depending on active host</small></div>
+    </div>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ Why /bgtest and not /test?</div>
+      <p>Blue/Green uses its own dedicated Kong Service (<code><span class="pn">api1</span>-bg-service</code>) and Route (<code><span class="pn">api1</span>-bg-route</code>) on path <code>/bgtest</code>. This keeps it completely isolated from the Canary strategy's <code>/test</code> route. The app's actual endpoint is <code>/test</code> — the route uses <code>strip_path: true</code> and the Kong Service sets <code>path: /test</code> so the upstream receives the correct path.</p>
+    </div>
+
+    <h3 id="bg-build">Step 1 — Build Docker Images</h3>
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Build blue and green images — confirm both in Docker image store</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell"># Build blue — image stored locally as: api1-app:blue
+docker build -t api1-app:blue .
+
+# Build green — image stored locally as: api1-app:green
+docker build -t api1-app:green .
+
+# Confirm both images exist before applying any YAML
+docker images --filter "reference=api1-app"</code></pre></div>
+    </div>
+
+    <h3>Step 2 — Deploy Blue to Kubernetes</h3>
+    <div class="cb">
+      <div class="cb-hdr" onclick="tog(this)">
+        <span class="cb-arrow">▶</span><span class="lang-yaml">YAML</span>
+        <span class="cb-title">api1-blue.yaml — Deployment + ClusterIP Service</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body"><pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api1-blue
+  labels:
+    app: api1-app
+    slot: blue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api1-app
+      slot: blue
+  template:
+    metadata:
+      labels:
+        app: api1-app
+        slot: blue
+    spec:
+      nodeName: desktop-control-plane
+      containers:
+        - name: api1-app
+          image: api1-app:blue          # must exactly match: docker build -t api1-app:blue
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Development"
+            - name: ASPNETCORE_URLS
+              value: "http://+:80"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector:4317"
+            - name: APP_VERSION
+              value: "v1-blue"
+            - name: DEPLOYMENT_SLOT
+              value: "blue"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api1-blue-service           # Kong target: api1-blue-service.default.svc.cluster.local:80
+spec:
+  type: ClusterIP
+  selector:
+    app: api1-app
+    slot: blue                      # selects ONLY blue pods
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http</code></pre></div>
+    </div>
+
+    <h3>Step 3 — Deploy Green to Kubernetes</h3>
+    <div class="cb">
+      <div class="cb-hdr" onclick="tog(this)">
+        <span class="cb-arrow">▶</span><span class="lang-yaml">YAML</span>
+        <span class="cb-title">api1-green.yaml — Deployment + ClusterIP Service</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body"><pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api1-green
+  labels:
+    app: api1-app
+    slot: green
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api1-app
+      slot: green
+  template:
+    metadata:
+      labels:
+        app: api1-app
+        slot: green
+    spec:
+      nodeName: desktop-control-plane
+      containers:
+        - name: api1-app
+          image: api1-app:green         # must exactly match: docker build -t api1-app:green
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Development"
+            - name: ASPNETCORE_URLS
+              value: "http://+:80"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector:4317"
+            - name: APP_VERSION
+              value: "v2-green"
+            - name: DEPLOYMENT_SLOT
+              value: "green"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /test, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api1-green-service          # Kong target: api1-green-service.default.svc.cluster.local:80
+spec:
+  type: ClusterIP
+  selector:
+    app: api1-app
+    slot: green                     # selects ONLY green pods
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http</code></pre></div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Apply both YAMLs and confirm all pods are Running 1/1</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell">kubectl apply -f .\api1-blue.yaml
+kubectl apply -f .\api1-green.yaml
+
+# Both blue and green pods must show STATUS=Running READY=1/1 before proceeding
+kubectl get pods -l app=api1-app -w</code></pre></div>
+    </div>
+
+    <h3 id="bg-kong">Step 4 — Configure Kong</h3>
+    <p>Blue/Green needs two new Kong objects — a dedicated <strong>Kong Service</strong> pointing at the Blue K8s service, and a <strong>Kong Route</strong> on <code>/bgtest</code> that attaches to it. The <code>strip_path: true</code> on the route combined with <code>path: /test</code> on the service means the upstream always receives <code>/test</code> regardless of the public route path.</p>
+
+    <div class="flow" style="margin-bottom:24px">
+      <div class="fn fn-b">① Create Kong Service<br><small>host = api1-blue K8s DNS<br>path = /test</small></div><div class="fa">→</div>
+      <div class="fn fn-p">② Create Kong Route<br><small>/bgtest · strip_path:true<br>attached to Kong Service</small></div><div class="fa">→</div>
+      <div class="fn fn-g">③ Verify Blue is live<br><small>GET /bgtest → slot:blue</small></div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-b">
+          <div class="step-title">Create the Kong Service — initially targeting Blue</div>
+          <p style="margin-bottom:8px">
+            This Kong Service points directly at the Blue K8s service DNS name. <code>path: /test</code> is set here because the app only exposes <code>/test</code> but the public route will be <code>/bgtest</code>. With <code>strip_path: true</code> on the route, Kong strips <code>/bgtest</code> and the Service prepends <code>/test</code>, so the upstream receives <code>GET /test</code>.<br>
+            During cutover, you PATCH only the <code>host</code> field of this Service object — nothing else changes.
+          </p>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">POST /services — create api1-bg-service targeting blue K8s service</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        name     = "api1-bg-service"
+        host     = "api1-blue-service.default.svc.cluster.local"  # initial: blue
+        port     = 80
+        protocol = "http"
+        path     = "/test"   # app endpoint; combined with strip_path on route → upstream gets /test
+    } | ConvertTo-Json)
+
+# Confirm the service was created correctly
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service" |
+    Select-Object name, host, port, path | Format-List</code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-b">
+          <div class="step-title">Create the Kong Route on /bgtest</div>
+          <p style="margin-bottom:8px"><code>strip_path: true</code> removes <code>/bgtest</code> before forwarding. The Service's <code>path: /test</code> then prepends <code>/test</code>, so the upstream (your .NET app) receives <code>GET /test</code>. This route is created once and never changed — only the Service host is swapped during cutover.</p>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">POST /services/api1-bg-service/routes — api1-bg-route on /bgtest</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service/routes" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        name       = "api1-bg-route"
+        paths      = @("/bgtest")
+        strip_path = $true     # /bgtest stripped → Service.path /test prepended → upstream gets /test
+    } | ConvertTo-Json)
+
+# Confirm the route was created and linked to the correct service
+Invoke-RestMethod -Uri "http://kong-admin.local/routes/api1-bg-route" | ConvertTo-Json -Depth 4</code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-b">
+          <div class="step-title">Verify Blue is receiving live traffic</div>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">GET /bgtest via Kong Proxy — expect slot:blue, version:v1-blue</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-proxy.local/bgtest" | ConvertTo-Json
+# Expected output:
+# "version": "v1-blue"
+# "slot":    "blue"</code></pre></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3 id="bg-cutover">Step 5 — Validate Green Privately (Before Cutover)</h3>
+    <p>Before touching Kong, validate Green directly via <code>kubectl port-forward</code>. This bypasses Kong entirely and hits the Green K8s service pod directly — confirming the new version works before any public traffic is sent to it.</p>
+
+    <div class="callout warn">
+      <div class="callout-title">⚠ Run these in two separate PowerShell terminals</div>
+      <p>Terminal 1 must stay open (it holds the port-forward tunnel). Run the test command in a separate Terminal 2 window.</p>
+    </div>
+
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Terminal 1 — open port-forward tunnel to Green K8s service on localhost:9090</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell"># Keep this terminal open — Ctrl+C to close when done
+kubectl port-forward svc/api1-green-service 9090:80</code></pre></div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Terminal 2 — hit Green directly (bypasses Kong) — expect slot:green, version:v2-green</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://localhost:9090/test" | ConvertTo-Json
+# Expected output:
+# "version": "v2-green"
+# "slot":    "green"
+
+# Public traffic via Kong still goes to Blue during this step — no impact on live users
+Invoke-RestMethod -Uri "http://kong-proxy.local/bgtest" | ConvertTo-Json
+# Still expected: "slot": "blue"</code></pre></div>
+    </div>
+
+    <h3>Step 6 — Cutover to Green</h3>
+    <p>Green has been validated. One PATCH command redirects all public traffic from Blue to Green. The Route (<code>api1-bg-route</code>) is never modified — only the Kong Service's <code>host</code> field changes.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-b">
+          <div class="step-title">PATCH the Kong Service host to Green</div>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">PATCH /services/api1-bg-service — switch host to green K8s service DNS</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{
+        host = "api1-green-service.default.svc.cluster.local"
+    } | ConvertTo-Json)
+
+# Confirm the host field was updated
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service" |
+    Select-Object name, host | Format-List</code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-b">
+          <div class="step-title">Verify all traffic is now flowing to Green</div>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">GET /bgtest via Kong Proxy — confirm slot:green, version:v2-green</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-proxy.local/bgtest" | ConvertTo-Json
+# Expected output:
+# "version": "v2-green"
+# "slot":    "green"</code></pre></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Step 7 — Rollback to Blue (if needed)</h3>
+    <p>PATCH the Service host back to Blue. Takes effect immediately on the next request — no pod restarts, no route changes.</p>
+
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">PATCH /services/api1-bg-service — rollback: switch host back to blue K8s service DNS</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{
+        host = "api1-blue-service.default.svc.cluster.local"
+    } | ConvertTo-Json)
+
+# Verify rollback immediately
+Invoke-RestMethod -Uri "http://kong-proxy.local/bgtest" | ConvertTo-Json
+# Expected output:
+# "version": "v1-blue"
+# "slot":    "blue"</code></pre></div>
+    </div>
+
+    <div class="callout ok">
+      <div class="callout-title">✓ Keep Blue running after cutover</div>
+      <p>Do not scale down or delete the Blue deployment immediately after switching to Green. Keep it warm for at least one full release cycle so rollback is instant. Only decommission Blue once Green is confirmed stable in production.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════
+     HEADER-BASED ROUTING
+════════════════════════════════════════════════ -->
+<section id="header-routing">
+  <div class="ps">
+    <div class="eyebrow">06 — Strategy</div>
+    <div class="sec-title">Header-Based Traffic Routing</div>
+    <div class="sec-lead">The safest production routing pattern. A new higher-priority route with a header condition intercepts only requests that carry a specific header — all other traffic continues to the original stable route, completely untouched. Zero risk to existing users.</div>
+
+    <div class="callout ok">
+      <div class="callout-title">✓ Core Principle — additive, never disruptive</div>
+      <p>Create a <strong>new</strong> Kong Service pointing at the canary/green K8s service, then a <strong>new</strong> Route on the same path with a <code>headers</code> condition and higher <code>regex_priority</code>. Do <strong>not</strong> modify the existing stable route or service. Kong evaluates routes by priority — the header route wins only for header-carrying requests; everything else falls through to the original route as before.</p>
+    </div>
+
+    <div class="cg">
+      <div class="cc">
+        <div class="cc-title"><span class="dot dg"></span>Why this is production-safe</div>
+        <ul>
+          <li>Existing routes untouched<span>zero config drift risk</span></li>
+          <li>Zero downtime<span>purely additive operation</span></li>
+          <li>Targeted testing<span>only flagged clients see new version</span></li>
+          <li>Instant rollback<span>DELETE the header route</span></li>
+          <li>No Upstream needed<span>direct K8s DNS target</span></li>
+        </ul>
+      </div>
+      <div class="cc">
+        <div class="cc-title"><span class="dot dp"></span>Industry adoption</div>
+        <ul>
+          <li>Kong<span>headers + regex_priority</span></li>
+          <li>Istio<span>VirtualService header match</span></li>
+          <li>AWS ALB<span>header-based listener rules</span></li>
+          <li>Traefik<span>Headers middleware routing</span></li>
+          <li>NGINX<span>$http_x_* variable matching</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>How Route Priority Works</h3>
+    <div class="flow">
+      <div class="fn fn-b">Incoming request<br><small>GET /test</small></div><div class="fa">→</div>
+      <div class="fn fn-y">Has X-Canary: true?<br><small>YES → priority 10 route wins<br>NO → priority 0 route wins</small></div><div class="fa">→</div>
+      <div class="fn fn-g">YES: canary service<br><small>new version</small></div>
+      <div class="fa" style="margin-left:8px">or</div>
+      <div class="fn fn-b" style="margin-left:8px">NO: stable service<br><small>existing route, unchanged</small></div>
+    </div>
+
+    <h3 id="hdr-canary">Canary via Header — Implementation</h3>
+    <p>This section assumes you have completed the Canary section: the stable and canary K8s Deployments and K8s Services are running, and <code><span class="pn">api1</span>-service</code> (Kong Service) and <code><span class="pn">api1</span>-test-route</code> (Kong Route on <code>/test</code>, <code>regex_priority</code> 0) have been created. If you are following this section standalone without the Canary section, run Steps 1 and 2 of the Canary Kong configuration first to create those two objects, then return here.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-b">
+          <div class="step-title">Create a dedicated Kong Service pointing directly at the canary K8s service</div>
+          <p style="margin-bottom:8px">This is a direct-to-K8s-service connection, not via an Upstream. It is separate from <code><span class="pn">api1</span>-service</code> — it will not share the route with stable traffic.</p>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">POST /services — create api1-canary-direct pointing at canary K8s service</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        name     = "api1-canary-direct"
+        host     = "api1-canary-service.default.svc.cluster.local"
+        port     = 80
+        protocol = "http"
+    } | ConvertTo-Json)
+
+# Confirm
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-canary-direct" |
+    Select-Object name, host | Format-List</code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-b">
+          <div class="step-title">Create a header-conditioned route at higher priority — do NOT modify the existing stable route</div>
+          <p style="margin-bottom:8px">This route matches the same path <code>/test</code> as the stable route but wins because its <code>regex_priority</code> (10) is higher than the stable route's (0). It only activates when the <code>X-Canary: true</code> header is present.</p>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">POST /routes — api1-canary-header-route on /test, X-Canary:true, priority 10</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-canary-direct/routes" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        name           = "api1-canary-header-route"
+        paths          = @("/test")
+        headers        = @{ "X-Canary" = @("true") }
+        regex_priority = 10         # must be higher than the stable route (default 0)
+    } | ConvertTo-Json)
+
+# Confirm route was created with correct headers and priority
+Invoke-RestMethod -Uri "http://kong-admin.local/routes/api1-canary-header-route" | ConvertTo-Json -Depth 4</code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-b">
+          <div class="step-title">Verify both routes work correctly</div>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">Test stable (no header) vs canary (X-Canary: true) — same URL, different results</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell"># Stable — no header — hits existing route at priority 0
+Invoke-RestMethod -Uri "http://kong-proxy.local/test" | ConvertTo-Json
+# Expected: "slot": "stable",  "version": "v1-stable"
+
+# Canary — header present — hits new route at priority 10
+Invoke-RestMethod -Uri "http://kong-proxy.local/test" `
+    -Headers @{ "X-Canary" = "true" } | ConvertTo-Json
+# Expected: "slot": "canary",  "version": "v2-canary"</code></pre></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3 id="hdr-bluegreen">Blue/Green via Header</h3>
+    <p>The same pattern applies to Blue/Green. Instead of immediately cutting over all traffic, create a header-triggered route pointing at Green for internal validation. The existing <code>/bgtest</code> route (Blue) stays untouched until you're ready for a full cutover.</p>
+    <p>This section assumes you have completed the Blue/Green section: Blue and Green K8s Deployments and K8s Services are running, and <code><span class="pn">api1</span>-bg-service</code> (Kong Service) and <code><span class="pn">api1</span>-bg-route</code> (Kong Route on <code>/bgtest</code>, <code>regex_priority</code> 0) have been created. If you are following this section standalone, complete Steps 1–4 of the Blue/Green section first to create those objects, then return here.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-b">
+          <div class="step-title">Create a dedicated Kong Service pointing directly at the Green K8s service</div>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">POST /services — create api1-green-direct pointing at green K8s service</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        name     = "api1-green-direct"
+        host     = "api1-green-service.default.svc.cluster.local"
+        port     = 80
+        protocol = "http"
+        path     = "/test"   # same path rewrite logic as the blue/green service
+    } | ConvertTo-Json)
+
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-green-direct" |
+    Select-Object name, host | Format-List</code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-b">
+          <div class="step-title">Create a header-triggered route on /bgtest at higher priority</div>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">POST /routes — api1-green-header-route on /bgtest, X-Slot:green, priority 10</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell">Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-green-direct/routes" `
+    -Method POST -ContentType 'application/json' `
+    -Body (@{
+        name           = "api1-green-header-route"
+        paths          = @("/bgtest")
+        headers        = @{ "X-Slot" = @("green") }
+        regex_priority = 10         # higher than api1-bg-route (default 0)
+        strip_path     = $true      # same strip_path logic as the blue route
+    } | ConvertTo-Json)
+
+Invoke-RestMethod -Uri "http://kong-admin.local/routes/api1-green-header-route" | ConvertTo-Json -Depth 4</code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-b">
+          <div class="step-title">Verify both routes work correctly</div>
+          <div class="cb">
+            <div class="cb-hdr open" onclick="tog(this)">
+              <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+              <span class="cb-title">Test blue (no header) vs green (X-Slot: green) — same URL, different results</span>
+              <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+            </div>
+            <div class="cb-body open"><pre><code class="language-powershell"># Blue — no header — hits existing api1-bg-route at priority 0
+Invoke-RestMethod -Uri "http://kong-proxy.local/bgtest" | ConvertTo-Json
+# Expected: "slot": "blue",  "version": "v1-blue"
+
+# Green — header present — hits api1-green-header-route at priority 10
+Invoke-RestMethod -Uri "http://kong-proxy.local/bgtest" `
+    -Headers @{ "X-Slot" = "green" } | ConvertTo-Json
+# Expected: "slot": "green",  "version": "v2-green"</code></pre></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Header Conventions Reference</h3>
+    <div class="tw"><table>
+      <tr><th>Header</th><th>Value</th><th>Use Case</th></tr>
+      <tr><td><code>X-Canary</code></td><td><code>true</code></td><td>Canary deployment routing</td></tr>
+      <tr><td><code>X-Slot</code></td><td><code>blue</code> · <code>green</code></td><td>Blue/Green slot selection</td></tr>
+      <tr><td><code>X-Version</code></td><td><code>v2</code></td><td>Explicit version pinning</td></tr>
+      <tr><td><code>X-User-Group</code></td><td><code>qa</code> · <code>internal</code></td><td>Internal QA / beta users only</td></tr>
+      <tr><td><code>X-Feature-Flag</code></td><td><code>new-checkout</code></td><td>Feature flag routing</td></tr>
+    </table></div>
+
+    <h3 id="hdr-rollback">Rollback — Delete the Header Route</h3>
+    <p>Deleting the header route instantly reverts all traffic back to the original stable route. The stable route was never modified — there is nothing to restore.</p>
+
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">DELETE header routes — instant rollback, stable route unaffected</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell"># Rollback canary header route
+Invoke-RestMethod -Uri "http://kong-admin.local/routes/api1-canary-header-route" -Method DELETE
+
+# Rollback green header route
+Invoke-RestMethod -Uri "http://kong-admin.local/routes/api1-green-header-route" -Method DELETE
+
+# Also clean up the direct Kong Services if no longer needed
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-canary-direct" -Method DELETE
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-green-direct"  -Method DELETE
+
+# Verify — all traffic now hits the original stable routes
+Invoke-RestMethod -Uri "http://kong-proxy.local/test"   | ConvertTo-Json   # → stable
+Invoke-RestMethod -Uri "http://kong-proxy.local/bgtest" | ConvertTo-Json   # → blue</code></pre></div>
+    </div>
+
+    <div class="callout ok">
+      <div class="callout-title">✓ Zero downtime rollback — nothing was ever changed</div>
+      <p>The stable route and stable Kong Service were never modified. Deleting the header route simply removes the interceptor. The existing routes continue serving exactly as before.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════
+     TRAFFIC MANAGEMENT
+════════════════════════════════════════════════ -->
+<section id="traffic">
+  <div class="ps">
+    <div class="eyebrow">07 — Operations</div>
+    <div class="sec-title">Traffic Management</div>
+    <div class="sec-lead">Shift canary Upstream weights in phases without any redeployment. Weight changes take effect on the next request — no Kong restart, no pod restart.</div>
+
+    <h3>Get &amp; Store Target IDs</h3>
+    <p>Run this once after creating the Upstream and Targets. Save <code>$stableId</code> and <code>$canaryId</code> in your PowerShell session — you'll need them for the weight-shifting commands below.</p>
+
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Retrieve and store stable/canary target IDs from the Upstream</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell">$targets  = Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream/targets"
+$stableId = ($targets.data | Where-Object { $_.target -like "*stable*" }).id
+$canaryId = ($targets.data | Where-Object { $_.target -like "*canary*" }).id
+
+Write-Host "Stable ID : $stableId"
+Write-Host "Canary ID : $canaryId"
+
+# Verify — should show both targets with their current weights
+$targets.data | Select-Object target, weight, id | Format-Table -AutoSize</code></pre></div>
+    </div>
+
+    <h3>Canary Promotion Phases</h3>
+    <div class="tw"><table>
+      <tr><th>Phase</th><th>Stable Weight</th><th>Canary Weight</th><th>Use When</th></tr>
+      <tr><td>Initial exposure</td><td>90</td><td>10</td><td>First release — minimal blast radius</td></tr>
+      <tr><td>Phase 2</td><td>70</td><td>30</td><td>No errors observed at 10%</td></tr>
+      <tr><td>Phase 3</td><td>50</td><td>50</td><td>Confidence growing — equal split</td></tr>
+      <tr><td>Full promotion</td><td>0</td><td>100</td><td>Canary is now production — stable is idle</td></tr>
+      <tr><td>Emergency rollback</td><td>100</td><td>0</td><td>Errors detected — revert all traffic instantly</td></tr>
+    </table></div>
+
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Set-CanaryWeights helper — run any phase with one function call</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell">function Set-CanaryWeights {
+    param(
+        [Parameter(Mandatory)][int]$StableWeight,
+        [Parameter(Mandatory)][int]$CanaryWeight
+    )
+
+    Invoke-RestMethod `
+        -Uri "http://kong-admin.local/upstreams/api1-upstream/targets/$stableId" `
+        -Method PATCH -ContentType 'application/json' `
+        -Body (@{ weight = $StableWeight } | ConvertTo-Json)
+
+    Invoke-RestMethod `
+        -Uri "http://kong-admin.local/upstreams/api1-upstream/targets/$canaryId" `
+        -Method PATCH -ContentType 'application/json' `
+        -Body (@{ weight = $CanaryWeight } | ConvertTo-Json)
+
+    Write-Host "✓ Stable: $StableWeight  |  Canary: $CanaryWeight"
+
+    # Read back to confirm
+    $t = Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream/targets"
+    $t.data | Select-Object target, weight | Format-Table -AutoSize
+}
+
+# --- Usage ---
+Set-CanaryWeights -StableWeight 90  -CanaryWeight 10   # Phase 1 — initial
+Set-CanaryWeights -StableWeight 70  -CanaryWeight 30   # Phase 2
+Set-CanaryWeights -StableWeight 50  -CanaryWeight 50   # Phase 3 — equal split
+Set-CanaryWeights -StableWeight 0   -CanaryWeight 100  # Full promotion
+Set-CanaryWeights -StableWeight 100 -CanaryWeight 0    # Emergency rollback</code></pre></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════
+     QUICK REFERENCE
+════════════════════════════════════════════════ -->
+<section id="cheatsheet">
+  <div class="ps">
+    <div class="eyebrow">08 — Reference</div>
+    <div class="sec-title">Quick Reference</div>
+    <div class="sec-lead">All essential commands in one place. No context needed — copy and run.</div>
+
+    <h3>kubectl — Cluster State</h3>
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">All kubectl inspection commands</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell">kubectl get pods -l app=api1-app                                # list all api1 pods + status
+kubectl get svc                                                  # list all K8s services
+kubectl describe pod &lt;pod-name&gt;                                 # pod events + config detail
+kubectl logs deployment/api1-stable   --tail=50                 # recent stable logs
+kubectl logs deployment/api1-canary   --tail=50                 # recent canary logs
+kubectl logs deployment/api1-blue     --tail=50                 # recent blue logs
+kubectl logs deployment/api1-green    --tail=50                 # recent green logs
+kubectl port-forward svc/api1-green-service 9090:80             # private access to green
+docker images --filter "reference=api1-app"                     # list all api1 local images</code></pre></div>
+    </div>
+
+    <h3>Kong Admin — Read State</h3>
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Read all Kong objects — services, routes, upstreams, targets</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell"># List all
+Invoke-RestMethod -Uri "http://kong-admin.local/services"  | ConvertTo-Json -Depth 3
+Invoke-RestMethod -Uri "http://kong-admin.local/routes"    | ConvertTo-Json -Depth 3
+Invoke-RestMethod -Uri "http://kong-admin.local/upstreams" | ConvertTo-Json -Depth 3
+
+# Specific objects
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-service"    | ConvertTo-Json
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service" | ConvertTo-Json
+Invoke-RestMethod -Uri "http://kong-admin.local/routes/api1-test-route"   | ConvertTo-Json -Depth 4
+Invoke-RestMethod -Uri "http://kong-admin.local/routes/api1-bg-route"     | ConvertTo-Json -Depth 4
+
+# Upstream targets with weights
+Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream/targets" |
+    Select-Object -ExpandProperty data |
+    Select-Object target, weight, id | Format-Table -AutoSize</code></pre></div>
+    </div>
+
+    <h3>Kong Admin — Canary Operations</h3>
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Canary — activate, promote, rollback</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell"># Activate canary — redirect service to upstream
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-service" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{ host = "api1-upstream" } | ConvertTo-Json)
+
+# Full promotion — canary takes 100%
+Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream/targets/$canaryId" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{ weight = 100 } | ConvertTo-Json)
+Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream/targets/$stableId" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{ weight = 0 } | ConvertTo-Json)
+
+# Emergency rollback — stable takes 100%
+Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream/targets/$stableId" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{ weight = 100 } | ConvertTo-Json)
+Invoke-RestMethod -Uri "http://kong-admin.local/upstreams/api1-upstream/targets/$canaryId" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{ weight = 0 } | ConvertTo-Json)</code></pre></div>
+    </div>
+
+    <h3>Kong Admin — Blue/Green Operations</h3>
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Blue/Green — cutover to green, rollback to blue</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell"># Cutover — switch all traffic to Green
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{ host = "api1-green-service.default.svc.cluster.local" } | ConvertTo-Json)
+
+# Rollback — switch all traffic back to Blue
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service" `
+    -Method PATCH -ContentType 'application/json' `
+    -Body (@{ host = "api1-blue-service.default.svc.cluster.local" } | ConvertTo-Json)
+
+# Verify current active slot
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-bg-service" |
+    Select-Object name, host | Format-List</code></pre></div>
+    </div>
+
+    <h3>Kong Admin — Header Route Operations</h3>
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Header routing — rollback by deleting header routes and services</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell"># Delete header routes (rollback)
+Invoke-RestMethod -Uri "http://kong-admin.local/routes/api1-canary-header-route" -Method DELETE
+Invoke-RestMethod -Uri "http://kong-admin.local/routes/api1-green-header-route"  -Method DELETE
+
+# Delete direct services (cleanup)
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-canary-direct" -Method DELETE
+Invoke-RestMethod -Uri "http://kong-admin.local/services/api1-green-direct"  -Method DELETE</code></pre></div>
+    </div>
+
+    <h3>Traffic Verification</h3>
+    <div class="cb">
+      <div class="cb-hdr open" onclick="tog(this)">
+        <span class="cb-arrow open">▶</span><span class="lang-ps">PowerShell</span>
+        <span class="cb-title">Send 20 requests and group by version — observe actual traffic split</span>
+        <button class="copy-btn" onclick="cpb(event,this)">copy</button>
+      </div>
+      <div class="cb-body open"><pre><code class="language-powershell">$results = 1..20 | ForEach-Object {
+    $r = Invoke-RestMethod -Uri "http://kong-proxy.local/test"
+    [PSCustomObject]@{
+        Request = $_
+        Version = $r.version
+        Slot    = $r.slot
+        Pod     = $r.handledBy
+    }
+}
+$results | Format-Table -AutoSize
+Write-Host "`nSummary by version:"
+$results | Group-Object Version | Select-Object Name, Count | Format-Table -AutoSize</code></pre></div>
+    </div>
+
+    <h3>Strategy Comparison</h3>
+    <div class="tw"><table>
+      <tr><th>Aspect</th><th>Canary (Upstream)</th><th>Blue/Green</th><th>Header-Based</th></tr>
+      <tr><td>Kong mechanism</td><td>Upstream + Target weights</td><td>Service host PATCH</td><td>Route priority + header condition</td></tr>
+      <tr><td>Traffic split</td><td>Gradual %, configurable live</td><td>All-or-nothing instant</td><td>Header-targeted requests only</td></tr>
+      <tr><td>Existing routes modified?</td><td>No — Route created fresh; only service host PATCHed to point at Upstream</td><td>No — new dedicated service+route</td><td>No — purely additive</td></tr>
+      <tr><td>New Kong objects created</td><td>1 Service + 1 Route + Upstream + 2 Targets</td><td>1 Service + 1 Route</td><td>1 Service + 1 Route (per target)</td></tr>
+      <tr><td>Rollback mechanism</td><td>PATCH weights to 100/0</td><td>PATCH service host to blue DNS</td><td>DELETE header route (and service)</td></tr>
+      <tr><td>Pre-release validation</td><td>Limited (small % real traffic)</td><td>Full (port-forward to green)</td><td>Targeted (specific header clients)</td></tr>
+      <tr><td>Risk level</td><td>Low — gradual exposure</td><td>Low — full env tested first</td><td>Lowest — zero stable impact</td></tr>
+      <tr><td>Public test path</td><td><code>/test</code></td><td><code>/bgtest</code></td><td><code>/test</code> or <code>/bgtest</code></td></tr>
+      <tr><td>imagePullPolicy</td><td colspan="3"><code>IfNotPresent</code> — required for all local Docker Desktop images</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<footer class="ftr">
+  <span>Kong API Gateway Guide · Docker Desktop Kubernetes · Windows · .NET 9</span>
+  <span class="r">Project: <span class="pn">api1</span> · Kestrel HTTP</span>
+</footer>
+
+</main>
+
+<script>
+// ── highlight.js ──────────────────────────────────────
+hljs.configure({ languages: ['powershell','yaml','bash','csharp'] });
+hljs.highlightAll();
+
+// ── PROJECT NAME ──────────────────────────────────────
+let currentPN = 'api1';
+
+function applyPN() {
+  const input = document.getElementById('pnInput');
+  const raw   = input.value.trim().replace(/[^a-zA-Z0-9_\-]/g,'');
+  const name  = raw || 'api1';
+  input.value = name;
+  if (name === currentPN) return;
+
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+
+  // Replace in .pn spans
+  document.querySelectorAll('.pn').forEach(el => { el.textContent = name; });
+
+  // Replace inside highlighted code blocks (text nodes within hljs spans)
+  document.querySelectorAll('pre code').forEach(block => {
+    block.innerHTML = block.innerHTML.replace(new RegExp(esc(currentPN),'g'), name);
+  });
+
+  currentPN = name;
+  document.title = `Kong Guide — ${name}`;
+}
+
+// ── COLLAPSIBLE ───────────────────────────────────────
+function tog(hdr) {
+  const body  = hdr.nextElementSibling;
+  const arrow = hdr.querySelector('.cb-arrow');
+  if (!body || !body.classList.contains('cb-body')) return;
+  const open = body.classList.contains('open');
+  body.classList.toggle('open', !open);
+  arrow.classList.toggle('open', !open);
+  hdr.classList.toggle('open', !open);
+}
+
+function cpb(e, btn) {
+  e.stopPropagation();
+  const block = btn.closest('.cb');
+  const body  = block.querySelector('.cb-body');
+  if (!body) return;
+  const wasOpen = body.classList.contains('open');
+  if (!wasOpen) body.classList.add('open');
+  navigator.clipboard.writeText(body.querySelector('pre').innerText).then(() => {
+    btn.textContent = 'copied!'; btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('ok'); }, 2000);
+    if (!wasOpen) body.classList.remove('open');
+  });
+}
+
+// ── SIDEBAR ───────────────────────────────────────────
+function toggleSB() {
+  const sb  = document.getElementById('sb');
+  const mn  = document.getElementById('main');
+  const ov  = document.getElementById('overlay');
+  if (window.innerWidth <= 900) {
+    sb.classList.toggle('open');
+    ov.classList.toggle('show');
+  } else {
+    sb.classList.toggle('collapsed');
+    mn.classList.toggle('exp');
+  }
+}
+
+// ── SCROLL SPY ────────────────────────────────────────
+// Build a flat ordered list of [id, navLink] pairs matching all nav hrefs
+const navLinks = Array.from(document.querySelectorAll('.nl[href]'));
+
+// Collect all anchor targets that nav links point to
+const anchorIds = navLinks.map(l => l.getAttribute('href').slice(1));
+
+// For each id, find its element. Some are on <section>, some on <h3>
+function getAnchorEl(id) {
+  return document.getElementById(id);
+}
+
+function setActive(id) {
+  navLinks.forEach(l => {
+    l.classList.toggle('active', l.getAttribute('href') === '#' + id);
+  });
+}
+
+// Use IntersectionObserver on all anchor elements
+const anchorEls = anchorIds.map(getAnchorEl).filter(Boolean);
+
+// Track which anchors are currently intersecting
+const intersecting = new Set();
+
+const spy = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      intersecting.add(entry.target.id);
+    } else {
+      intersecting.delete(entry.target.id);
+    }
+  });
+
+  // Pick the topmost intersecting anchor (by document order)
+  let topId = null;
+  let topY  = Infinity;
+  intersecting.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      const y = el.getBoundingClientRect().top;
+      if (y >= 0 && y < topY) { topY = y; topId = id; }
+    }
+  });
+
+  // If nothing is intersecting (between two sections), find the last one above viewport
+  if (!topId) {
+    let bestId = null;
+    let bestBottom = -Infinity;
+    anchorEls.forEach(el => {
+      const rect = el.getBoundingClientRect();
+      if (rect.bottom < 80 && rect.bottom > bestBottom) {
+        bestBottom = rect.bottom;
+        bestId = el.id;
+      }
+    });
+    topId = bestId;
+  }
+
+  if (topId) setActive(topId);
+
+}, {
+  rootMargin: '-10% 0px -80% 0px',
+  threshold: 0
+});
+
+anchorEls.forEach(el => spy.observe(el));
+
+// Close sidebar on mobile nav click
+navLinks.forEach(l => l.addEventListener('click', () => {
+  if (window.innerWidth <= 900) {
+    document.getElementById('sb').classList.remove('open');
+    document.getElementById('overlay').classList.remove('show');
+  }
+}));
+</script>
+</body>
+</html>
