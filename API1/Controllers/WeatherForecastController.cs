@@ -1,11 +1,21 @@
+using API1.Metrics;
+
 using Microsoft.AspNetCore.Mvc;
+
+using OpenTelemetry.Metrics;
+
+using Prometheus;
 
 namespace API1.Controllers
 {
+
+
     [ApiController]
     [Route("[controller]")]
     public class WeatherForecastController : ControllerBase
     {
+    
+
         private static readonly string[] Summaries = new[]
         {
             "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
@@ -28,6 +38,15 @@ namespace API1.Controllers
                 Summary = Summaries[Random.Shared.Next(Summaries.Length)]
             })
             .ToArray();
+        }
+
+        [HttpPost("AddOrder")]
+        public IActionResult AddNewOrder()
+        {
+            OrderMetrics.OrderCounter.Add(1);
+            //OrderMetrics.OrderCounter.Add(1,new KeyValuePair<string, object?>("order_type", "online")); //optionally add domain labels
+
+            return Ok("Order added");
         }
     }
 }
