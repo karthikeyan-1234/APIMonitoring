@@ -6,10 +6,12 @@ using OpenTelemetry.Trace;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------------------------
-// Service Info
+// Service Info (Dynamic Version)
 // ---------------------------
 var serviceName = "API1";
-var serviceVersion = "1.0.0";
+var serviceVersion = Environment.GetEnvironmentVariable("APP_VERSION") ?? "1.0.0";
+
+
 
 // ---------------------------
 // Logging (OTEL)
@@ -19,22 +21,33 @@ builder.Logging.ClearProviders();
 builder.Logging.AddOpenTelemetry(options =>
 {
     options.SetResourceBuilder(
-        ResourceBuilder.CreateDefault()
-            .AddService(serviceName: serviceName, serviceVersion: serviceVersion));
+        ResourceBuilder.CreateDefault().AddService(
+            serviceName: serviceName,
+            serviceVersion: serviceVersion));
 
-    // Send logs to OTEL Collector
     options.AddOtlpExporter(otlpOptions =>
     {
         otlpOptions.Endpoint = new Uri("http://otel-collector:4317");
     });
 });
 
+
+// ---------------------------
+// Common Resource
+// Build ONCE and reuse everywhere so service.version is consistent.
+// ---------------------------
+Action<ResourceBuilder> configureResource = r => r
+    .AddService(serviceName: serviceName, serviceVersion: serviceVersion)
+    .AddAttributes(new Dictionary<string, object>
+    {
+        ["service.version"] = serviceVersion
+    });
+
 // ---------------------------
 // OpenTelemetry (Metrics + Traces)
 // ---------------------------
 builder.Services.AddOpenTelemetry()
-    .ConfigureResource(resource => resource
-        .AddService(serviceName: serviceName, serviceVersion: serviceVersion))
+    .ConfigureResource(configureResource)
 
     // -------- TRACES --------
     .WithTracing(tracing =>
@@ -79,21 +92,17 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 // ---------------------------
-// Middleware - IMPORTANT ORDER
+// Middleware
 // ---------------------------
-
-// Swagger should come early in the pipeline
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", $"{serviceName} V1");
-    c.RoutePrefix = "swagger"; // Makes UI available at /swagger
+    c.RoutePrefix = "swagger";
 });
 
-// Add static files middleware if needed (Swagger UI uses static files)
 app.UseStaticFiles();
 
-// Authorization and routing
 app.UseAuthorization();
 app.MapControllers();
 
@@ -111,7 +120,7 @@ app.MapGet("/test", (ILogger<Program> logger) =>
     return Results.Ok(new
     {
         Message = "Telemetry working!",
-        Version = appVersion,   // "v1-stable" or "v2-canary"
+        Version = appVersion,
         HandledBy = podName,
         PodIP = podIp,
         Time = DateTime.UtcNow

@@ -22,8 +22,8 @@ spec:
     spec:
       containers:
         - name: api1-app
-          image: api1-app:stable        # ← matches your docker build tag
-          imagePullPolicy: IfNotPresent # ← use local image
+          image: api1-app:stable        # <- matches your docker build tag
+          imagePullPolicy: IfNotPresent # <- use local image
           ports:
             - containerPort: 80
               name: http
@@ -36,6 +36,12 @@ spec:
               value: "http://otel-collector:4317"
             - name: APP_VERSION
               value: "v1-stable"
+            # --- OTel resource attributes (these become Prometheus labels) ---
+            - name: OTEL_SERVICE_NAME
+              value: "API1"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.version=v1-stable,service.name=API1"
+            # -----------------------------------------------------------------
             - name: POD_IP
               valueFrom:
                 fieldRef:

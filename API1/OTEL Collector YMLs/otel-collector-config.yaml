@@ -15,9 +15,27 @@ data:
     processors:
       batch:
 
+      # Enriches every metric with k8s metadata (pod name, deployment name, namespace, etc.)
+      k8sattributes:
+        auth_type: serviceAccount
+        passthrough: false
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.deployment.name
+            - k8s.namespace.name
+            - k8s.node.name
+        pod_association:
+          - sources:
+            - from: connection
+
     exporters:
       prometheus:
         endpoint: "0.0.0.0:8889"
+        # Converts ALL OTel resource attributes (service.version, service.name, etc.)
+        # into Prometheus labels automatically. No transform processor needed.
+        resource_to_telemetry_conversion:
+          enabled: true
 
       debug: {}
 
@@ -25,7 +43,7 @@ data:
       pipelines:
         metrics:
           receivers: [otlp]
-          processors: [batch]
+          processors: [batch, k8sattributes]
           exporters: [prometheus]
 
         logs:
