@@ -28,7 +28,7 @@ namespace API1.Controllers
             _logger = logger;
         }
 
-        [HttpGet(Name = "GetWeatherForecast")]
+        [HttpGet("GetWeatherForecast", Name = "GetWeatherForecast")]
         public IEnumerable<WeatherForecast> Get()
         {
             return Enumerable.Range(1, 5).Select(index => new WeatherForecast
@@ -40,7 +40,7 @@ namespace API1.Controllers
             .ToArray();
         }
 
-        [HttpPost("AddOrder")]
+        [HttpPost("AddOrder", Name = "AddOrder")]
         public IActionResult AddNewOrder()
         {
             OrderMetrics.OrderCounter.Add(1);
