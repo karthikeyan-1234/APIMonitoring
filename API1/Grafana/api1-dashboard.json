@@ -1,0 +1,516 @@
+{
+  "title": "API1 — Canary vs Stable",
+  "uid": "api1-canary-stable-v2",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-30m", "to": "now" },
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 100,
+      "type": "text",
+      "title": "",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "options": {
+        "mode": "markdown",
+        "content": "## 📊 Request Volume"
+      }
+    },
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Request Rate — Stable (req/s)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(aspnetcore_routing_match_attempts_total{service_version=\"v1-stable\", aspnetcore_routing_match_status=\"success\"}[1m]))",
+          "legendFormat": "stable",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "custom": { "lineWidth": 2, "fillOpacity": 15 }
+        }
+      },
+      "gridPos": { "x": 0, "y": 1, "w": 12, "h": 8 }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Request Rate — Canary (req/s)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(aspnetcore_routing_match_attempts_total{service_version=\"v1-canary\", aspnetcore_routing_match_status=\"success\"}[1m]))",
+          "legendFormat": "canary",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "fixed", "fixedColor": "orange" },
+          "custom": { "lineWidth": 2, "fillOpacity": 15 }
+        }
+      },
+      "gridPos": { "x": 12, "y": 1, "w": 12, "h": 8 }
+    },
+    {
+      "id": 101,
+      "type": "text",
+      "title": "",
+      "gridPos": { "x": 0, "y": 9, "w": 24, "h": 1 },
+      "options": {
+        "mode": "markdown",
+        "content": "## ⏱️ Latency — P95 & P90"
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "P95 Latency — Stable vs Canary",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{service_version=\"v1-stable\"}[2m])) by (le))",
+          "legendFormat": "p95 stable",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{service_version=\"v1-canary\"}[2m])) by (le))",
+          "legendFormat": "p95 canary",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": { "showLegend": true, "displayMode": "list", "placement": "bottom" },
+        "exemplars": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "lineWidth": 2, "fillOpacity": 8 }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "p95 stable" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "p95 canary" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          }
+        ]
+      },
+      "gridPos": { "x": 0, "y": 10, "w": 12, "h": 8 }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "P90 Latency — Stable vs Canary",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.90, sum(rate(http_server_request_duration_seconds_bucket{service_version=\"v1-stable\"}[2m])) by (le))",
+          "legendFormat": "p90 stable",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.90, sum(rate(http_server_request_duration_seconds_bucket{service_version=\"v1-canary\"}[2m])) by (le))",
+          "legendFormat": "p90 canary",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": { "showLegend": true, "displayMode": "list", "placement": "bottom" },
+        "exemplars": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "lineWidth": 2, "fillOpacity": 8 }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "p90 stable" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "p90 canary" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          }
+        ]
+      },
+      "gridPos": { "x": 12, "y": 10, "w": 12, "h": 8 }
+    },
+    {
+      "id": 102,
+      "type": "text",
+      "title": "",
+      "gridPos": { "x": 0, "y": 18, "w": 24, "h": 1 },
+      "options": {
+        "mode": "markdown",
+        "content": "## 🔴 Error Rates — 5xx Server Errors"
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "5xx Error Rate — Stable vs Canary (req/s)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_request_duration_seconds_count{service_version=\"v1-stable\", http_response_status_code=~\"5..\"}[1m]))",
+          "legendFormat": "5xx stable",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(http_server_request_duration_seconds_count{service_version=\"v1-canary\", http_response_status_code=~\"5..\"}[1m]))",
+          "legendFormat": "5xx canary",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": { "showLegend": true, "displayMode": "list", "placement": "bottom" },
+        "exemplars": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "lineWidth": 2, "fillOpacity": 15 }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "5xx stable" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "5xx canary" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          }
+        ]
+      },
+      "gridPos": { "x": 0, "y": 19, "w": 12, "h": 8 }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "5xx Error % — Stable vs Canary",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(http_server_request_duration_seconds_count{service_version=\"v1-stable\", http_response_status_code=~\"5..\"}[1m])) / sum(rate(http_server_request_duration_seconds_count{service_version=\"v1-stable\"}[1m]))",
+          "legendFormat": "5xx% stable",
+          "refId": "A"
+        },
+        {
+          "expr": "100 * sum(rate(http_server_request_duration_seconds_count{service_version=\"v1-canary\", http_response_status_code=~\"5..\"}[1m])) / sum(rate(http_server_request_duration_seconds_count{service_version=\"v1-canary\"}[1m]))",
+          "legendFormat": "5xx% canary",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "custom": { "lineWidth": 2, "fillOpacity": 8 }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "5xx% stable" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "5xx% canary" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          }
+        ]
+      },
+      "gridPos": { "x": 12, "y": 19, "w": 12, "h": 8 }
+    },
+    {
+      "id": 103,
+      "type": "text",
+      "title": "",
+      "gridPos": { "x": 0, "y": 27, "w": 24, "h": 1 },
+      "options": {
+        "mode": "markdown",
+        "content": "## 🟡 Error Rates — 4xx Client Errors"
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "4xx Error Rate — Stable vs Canary (req/s)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_request_duration_seconds_count{service_version=\"v1-stable\", http_response_status_code=~\"4..\"}[1m]))",
+          "legendFormat": "4xx stable",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(http_server_request_duration_seconds_count{service_version=\"v1-canary\", http_response_status_code=~\"4..\"}[1m]))",
+          "legendFormat": "4xx canary",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": { "showLegend": true, "displayMode": "list", "placement": "bottom" },
+        "exemplars": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "4xx stable" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "4xx canary" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          }
+        ]
+      },
+      "gridPos": { "x": 0, "y": 28, "w": 12, "h": 8 }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "4xx Error % — Stable vs Canary",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(http_server_request_duration_seconds_count{service_version=\"v1-stable\", http_response_status_code=~\"4..\"}[1m])) / sum(rate(http_server_request_duration_seconds_count{service_version=\"v1-stable\"}[1m]))",
+          "legendFormat": "4xx% stable",
+          "refId": "A"
+        },
+        {
+          "expr": "100 * sum(rate(http_server_request_duration_seconds_count{service_version=\"v1-canary\", http_response_status_code=~\"4..\"}[1m])) / sum(rate(http_server_request_duration_seconds_count{service_version=\"v1-canary\"}[1m]))",
+          "legendFormat": "4xx% canary",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 15 }
+            ]
+          },
+          "custom": { "lineWidth": 2, "fillOpacity": 8 }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "4xx% stable" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "4xx% canary" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          }
+        ]
+      },
+      "gridPos": { "x": 12, "y": 28, "w": 12, "h": 8 }
+    },
+    {
+      "id": 104,
+      "type": "text",
+      "title": "",
+      "gridPos": { "x": 0, "y": 36, "w": 24, "h": 1 },
+      "options": {
+        "mode": "markdown",
+        "content": "## 🧠 Memory — Allocation Rate Comparison"
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Memory Allocation Rate — Stable vs Canary (bytes/s)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(dotnet_gc_heap_allocated_bytes_total{service_version=\"v1-stable\"}[1m]))",
+          "legendFormat": "alloc stable",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(dotnet_gc_heap_allocated_bytes_total{service_version=\"v1-canary\"}[1m]))",
+          "legendFormat": "alloc canary",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "alloc stable" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "alloc canary" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          }
+        ]
+      },
+      "gridPos": { "x": 0, "y": 37, "w": 12, "h": 8 }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "GC Heap Size — Stable vs Canary (bytes)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(dotnet_gc_last_collection_heap_size_bytes{service_version=\"v1-stable\"})",
+          "legendFormat": "heap stable",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(dotnet_gc_last_collection_heap_size_bytes{service_version=\"v1-canary\"})",
+          "legendFormat": "heap canary",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "heap stable" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "heap canary" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          }
+        ]
+      },
+      "gridPos": { "x": 12, "y": 37, "w": 12, "h": 8 }
+    },
+    {
+      "id": 105,
+      "type": "text",
+      "title": "",
+      "gridPos": { "x": 0, "y": 45, "w": 24, "h": 1 },
+      "options": {
+        "mode": "markdown",
+        "content": "## 🪣 Pod Breakdown"
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Request Rate per Pod — Stable",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(aspnetcore_routing_match_attempts_total{service_version=\"v1-stable\", aspnetcore_routing_match_status=\"success\"}[1m])) by (service_instance_id)",
+          "legendFormat": "{{service_instance_id}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "lineWidth": 2, "fillOpacity": 8 }
+        }
+      },
+      "gridPos": { "x": 0, "y": 46, "w": 12, "h": 8 }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Request Rate per Pod — Canary",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(aspnetcore_routing_match_attempts_total{service_version=\"v1-canary\", aspnetcore_routing_match_status=\"success\"}[1m])) by (service_instance_id)",
+          "legendFormat": "{{service_instance_id}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "lineWidth": 2, "fillOpacity": 8 }
+        }
+      },
+      "gridPos": { "x": 12, "y": 46, "w": 12, "h": 8 }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Memory Allocation Rate per Pod — Stable",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(dotnet_gc_heap_allocated_bytes_total{service_version=\"v1-stable\"}[1m])) by (service_instance_id)",
+          "legendFormat": "{{service_instance_id}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": { "lineWidth": 2, "fillOpacity": 8 }
+        }
+      },
+      "gridPos": { "x": 0, "y": 54, "w": 12, "h": 8 }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Memory Allocation Rate per Pod — Canary",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(dotnet_gc_heap_allocated_bytes_total{service_version=\"v1-canary\"}[1m])) by (service_instance_id)",
+          "legendFormat": "{{service_instance_id}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": { "lineWidth": 2, "fillOpacity": 8 }
+        }
+      },
+      "gridPos": { "x": 12, "y": 54, "w": 12, "h": 8 }
+    }
+  ]
+}

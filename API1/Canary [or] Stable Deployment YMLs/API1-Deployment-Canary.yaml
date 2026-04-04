@@ -27,7 +27,7 @@ spec:
       containers:
         - name: api1-app
           image: api1-app:canary
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
               name: http

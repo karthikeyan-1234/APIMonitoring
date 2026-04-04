@@ -14,8 +14,6 @@ data:
 
     processors:
       batch:
-
-      # Enriches every metric with k8s metadata (pod name, deployment name, namespace, etc.)
       k8sattributes:
         auth_type: serviceAccount
         passthrough: false
@@ -32,25 +30,23 @@ data:
     exporters:
       prometheus:
         endpoint: "0.0.0.0:8889"
-        # Converts ALL OTel resource attributes (service.version, service.name, etc.)
-        # into Prometheus labels automatically. No transform processor needed.
+        # Temporarily set to false to ensure standard prometheus scrape works first
+        enable_open_metrics: false 
         resource_to_telemetry_conversion:
           enabled: true
-
-      debug: {}
+      debug:
+        verbosity: basic
 
     service:
       pipelines:
         metrics:
           receivers: [otlp]
           processors: [batch, k8sattributes]
-          exporters: [prometheus]
-
+          exporters: [prometheus, debug] # Added debug here
         logs:
           receivers: [otlp]
           processors: [batch]
           exporters: [debug]
-
         traces:
           receivers: [otlp]
           processors: [batch]

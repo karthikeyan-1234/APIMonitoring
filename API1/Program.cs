@@ -1,3 +1,5 @@
+using API1;
+
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -65,8 +67,9 @@ builder.Services.AddOpenTelemetry()
     .WithMetrics(metrics =>
     {
         metrics
-            .AddMeter("API1.BusinessMetrics")
-            .AddAspNetCoreInstrumentation()
+            .SetExemplarFilter(ExemplarFilterType.AlwaysOn) //Add Trace IDs to metrics which can be used to identify
+            .AddMeter("API1.BusinessMetrics")                   // In Prometheus and Grafana. The same can be used in 
+            .AddAspNetCoreInstrumentation()                     // ELK (Kibana) to get the actual error
             .AddHttpClientInstrumentation()
             .AddRuntimeInstrumentation()
             .AddOtlpExporter(options =>
@@ -78,6 +81,8 @@ builder.Services.AddOpenTelemetry()
 // ---------------------------
 // Services
 // ---------------------------
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -91,6 +96,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 // ---------------------------
 // Middleware

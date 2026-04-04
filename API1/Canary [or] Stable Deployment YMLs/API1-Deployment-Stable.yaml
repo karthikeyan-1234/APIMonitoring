@@ -23,7 +23,7 @@ spec:
       containers:
         - name: api1-app
           image: api1-app:stable        # <- matches your docker build tag
-          imagePullPolicy: IfNotPresent # <- use local image
+          imagePullPolicy: Always # <- use local image
           ports:
             - containerPort: 80
               name: http

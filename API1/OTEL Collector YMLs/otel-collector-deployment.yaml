@@ -12,27 +12,28 @@ spec:
       labels:
         app: otel-collector
     spec:
+      serviceAccountName: otel-collector # Matches your otel-rbac.yaml
       containers:
         - name: otel-collector
           image: otel/opentelemetry-collector-contrib:latest
           args:
             - "--config=/etc/otel-collector-config.yaml"
-
+          env:
+            - name: K8S_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
           ports:
             - name: otlp-grpc
               containerPort: 4317
-
             - name: otlp-http
               containerPort: 4318
-
             - name: prometheus
               containerPort: 8889
-
           volumeMounts:
             - name: config-volume
               mountPath: /etc/otel-collector-config.yaml
               subPath: otel-collector-config.yaml
-
       volumes:
         - name: config-volume
           configMap:

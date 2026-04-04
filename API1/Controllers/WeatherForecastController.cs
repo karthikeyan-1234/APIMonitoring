@@ -48,5 +48,48 @@ namespace API1.Controllers
 
             return Ok("Order added");
         }
+
+
+
+        // ── Simulation Endpoints ────────────────────────────────────────────
+
+        // Simulates a 400 Bad Request (random ~30% of the time, else 200)
+        [HttpGet("SimulateBadRequest", Name = "SimulateBadRequest")]
+        public IActionResult SimulateBadRequest()
+        {
+            if (Random.Shared.NextDouble() < 0.3)
+                return BadRequest("Simulated 400: Invalid request parameters");
+
+            return Ok("Request was valid");
+        }
+
+        // Simulates a 500 Internal Server Error (random ~30% of the time, else 200)
+        [HttpGet("SimulateServerError", Name = "SimulateServerError")]
+        public IActionResult SimulateServerError()
+        {
+            if (Random.Shared.NextDouble() < 0.3)
+                throw new InvalidOperationException("Simulated 500: Database connection timed out.");
+
+            return Ok("Server handled request successfully");
+        }
+
+        // Simulates GC heap pressure by allocating large byte arrays
+        [HttpGet("SimulateMemoryPressure", Name = "SimulateMemoryPressure")]
+        public IActionResult SimulateMemoryPressure()
+        {
+            var allocations = new List<byte[]>();
+
+            // Allocate ~200MB in chunks to force GC pressure
+            for (int i = 0; i < 20; i++)
+                allocations.Add(new byte[10 * 1024 * 1024]); // 10MB per chunk
+
+            // Hold briefly so GC can't immediately collect
+            Thread.Sleep(500);
+
+            allocations.Clear();
+            GC.Collect(); // explicit collect so heap spike is visible then drops
+
+            return Ok($"Memory pressure simulated. Allocated and released ~200MB.");
+        }
     }
 }
