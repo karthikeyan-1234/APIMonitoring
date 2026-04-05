@@ -18,6 +18,8 @@ spec:
           args:
             - "--config.file=/etc/prometheus/prometheus.yml"
             - "--storage.tsdb.retention.time=15d"
+            - "--enable-feature=exemplar-storage"
+            - "--enable-feature=old-ui"
           ports:
             - containerPort: 9090
           volumeMounts:

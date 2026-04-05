@@ -30,8 +30,7 @@ data:
     exporters:
       prometheus:
         endpoint: "0.0.0.0:8889"
-        # Temporarily set to false to ensure standard prometheus scrape works first
-        enable_open_metrics: false 
+        enable_open_metrics: true
         resource_to_telemetry_conversion:
           enabled: true
       debug:
@@ -42,7 +41,7 @@ data:
         metrics:
           receivers: [otlp]
           processors: [batch, k8sattributes]
-          exporters: [prometheus, debug] # Added debug here
+          exporters: [prometheus, debug]
         logs:
           receivers: [otlp]
           processors: [batch]
